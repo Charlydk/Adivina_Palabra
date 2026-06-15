@@ -1,51 +1,95 @@
-# 🎲 Ahorcado Pro - Full-Stack con .NET, React y Gemini AI
+# Ayuda a Diego: Aprendiendo con IA
 
-Este proyecto es una evolución masiva del clásico juego del Ahorcado, transformada en una aplicación web moderna de alto rendimiento. Combina un backend robusto en **ASP.NET Core** con un frontend dinámico en **React** y potencia de **Inteligencia Artificial** mediante la API de Google Gemini.
-
-## 🚀 Novedades de la Versión Pro
-
-*   **Inteligencia Artificial (Gemini AI):** Integración con modelos de IA para generar categorías dinámicas, palabras creativas y pistas inteligentes.
-*   **Seguridad:** Implementación de autenticación basada en **JWT (JSON Web Tokens)**.
-*   **UI/UX Moderna:** Interfaz reconstruida con **Tailwind CSS v4** y animaciones fluidas mediante **Framer Motion**.
-*   **Arquitectura React + TypeScript:** Frontend tipado y escalable.
+Plataforma educativa de adivinanza de palabras desarrollada como proyecto final para la materia **Tecnologías Educativas**. Transforma el clásico juego del ahorcado en una experiencia de aprendizaje interactiva con IA generativa, modos multijugador en tiempo real y herramientas para el docente.
 
 ---
 
-## 🏛️ Arquitectura Técnica
+## Características principales
 
-*   **Backend (ASP.NET Core 10):**
-    *   **Gemini Integration:** Servicio para interactuar con la IA de Google.
-    *   **SignalR Hub:** Comunicación en tiempo real para modos multijugador.
-    *   **Hybrid Storage:** Soporte para PostgreSQL y fallback automático a base de datos en memoria.
-*   **Frontend (React 19 + Vite):**
-    *   **Componentes Reactivos:** Gestión de estado con Hooks y Context.
-    *   **Tailwind CSS v4:** Estilos de vanguardia.
-    *   **Framer Motion:** Animaciones cinematográficas.
+- **Plataforma educativa**: dos perfiles de usuario — Primaria (5°–7° grado) y Adultos Mayores
+- **Alegoría visual**: progresión por fases ilustradas (castillo, nene y dragón) — sin imágenes de violencia
+- **IA generativa**: pistas y definiciones automáticas via Groq (modelo llama)
+- **Salas del docente**: el profesor crea una lista de palabras propias y comparte un código de 6 caracteres
+  - **Modo Tarea**: cada alumno juega su propia sesión independiente desde casa
+  - **Clase en vivo**: el docente juega proyectado, la clase dicta las letras
+- **Modos de juego**: Solitario, Local Versus, Online Coop, Online Versus
+- **Tiempo real**: comunicación via SignalR (WebSockets)
+- **Daily Challenge**: palabra diaria compartida con sistema de compartir resultado
 
 ---
 
-## ⚙️ Instalación y Ejecución Local
+## Stack tecnológico
+
+| Capa | Tecnología |
+|------|-----------|
+| Backend | ASP.NET Core 10, C# |
+| Tiempo real | SignalR |
+| Frontend | React 19, TypeScript, Vite |
+| Estilos | Tailwind CSS v4, Framer Motion |
+| IA | Groq API (llama) |
+| Base de datos | Supabase (PostgreSQL) / InMemory (dev) |
+| Auth | JWT + Supabase Auth |
+
+---
+
+## Instalación local
 
 ### Requisitos
-* .NET 10 SDK
-* Node.js 20+
 
-### Pasos
+- .NET 10 SDK
+- Node.js 20+
+- (Opcional) Cuenta Supabase y clave de Groq para IA y persistencia
 
-1.  **Backend:**
-    ```bash
-    cd backend/AhorcadoPro.Backend
-    dotnet run
-    ```
+### Backend
 
-2.  **Frontend:**
-    ```bash
-    cd frontend
-    npm install
-    npm run dev
-    ```
+```powershell
+cd backend\AhorcadoPro.Backend
+dotnet run
+```
+
+El backend corre en `http://localhost:5000`. Si `ConnectionStrings:Default` apunta a localhost o está vacío, usa base de datos en memoria automáticamente.
+
+### Frontend
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+El frontend corre en `http://localhost:5173`.
+
+### Variables de entorno
+
+Crear `frontend/.env`:
+```
+VITE_API_URL=http://localhost:5000/api
+VITE_HUB_URL=http://localhost:5000/hubs/game
+```
+
+Configurar `backend/AhorcadoPro.Backend/appsettings.json` (no commitear):
+```json
+{
+  "ConnectionStrings": {
+    "Default": "Host=...;Database=postgres;Username=...;Password=...;SSL Mode=Require"
+  },
+  "Groq": {
+    "ApiKey": "TU_CLAVE_GROQ"
+  },
+  "Jwt": {
+    "Key": "clave-segura-de-produccion"
+  }
+}
+```
+
+### Tests
+
+```powershell
+dotnet test backend\AhorcadoPro.Tests
+```
 
 ---
 
-## 📄 Licencia
-Este proyecto está bajo la Licencia MIT.
+## Licencia
+
+MIT
