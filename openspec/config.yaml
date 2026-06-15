@@ -1,0 +1,44 @@
+# openspec/config.yaml
+schema: spec-driven
+
+context: |
+  Tech stack: React 19 (Vite, Tailwind 4, React Router 7) + .NET 10 (Web API, SignalR, EF Core).
+  Architecture: Microservices-lite (Backend/Frontend), Singleton GameManager with SignalR Hubs.
+  Testing: xUnit for Backend. None for Frontend.
+  Style: ESLint (FE), dotnet-format (BE).
+
+strict_tdd: true
+
+testing:
+  strict_tdd: true
+  framework: xUnit
+  runner: dotnet test
+  layers:
+    unit: true
+    integration: true (InMemory EF)
+    e2e: false
+  quality:
+    linter: eslint (frontend)
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+    - Identify affected modules/packages
+  specs:
+    - Use Given/When/Then format for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+  tasks:
+    - Group tasks by phase (infrastructure, implementation, testing)
+    - Use hierarchical numbering (1.1, 1.2, etc.)
+    - Keep tasks small enough to complete in one session
+  apply:
+    - Follow existing code patterns (Controllers/Services/Hooks)
+    - Use async/await correctly with Semaphores for Singleton state
+  verify:
+    - Run dotnet test for backend changes
+    - Compare implementation against every spec scenario
+  archive:
+    - Warn before merging destructive deltas
