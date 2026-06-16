@@ -28,6 +28,12 @@ namespace AhorcadoPro.Backend.Controllers
         public long WordListId { get; set; }
         public string? Alias { get; set; }
         public int MaxAttempts { get; set; } = 6;
+        public string? JoinCode { get; set; }
+    }
+
+    public class UpdateWordListRequest
+    {
+        public List<WordEntryDto> Words { get; set; } = [];
     }
 
     public class JoinRoomRequest
@@ -162,7 +168,19 @@ namespace AhorcadoPro.Backend.Controllers
             }).ToList();
 
             // CreateRoom registers the code→wordListId mapping; no GameSession is created here.
-            var joinCode = _gameManager.CreateRoom(list.Name, roomWords, (int)list.Id);
+            string joinCode;
+            try
+            {
+                joinCode = _gameManager.CreateRoom(list.Name, roomWords, (int)list.Id, request.JoinCode);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { error = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
 
             // Persist code to DB so it survives server restarts
             list.JoinCode = joinCode;
@@ -177,6 +195,72 @@ namespace AhorcadoPro.Backend.Controllers
                     listName = list.Name,
                     totalWords = items.Count
                 });
+        }
+
+        // GET /api/wordlists/{id} — returns full word list with items (for editing)
+        [HttpGet("api/wordlists/{id}")]
+        public async Task<IActionResult> GetWordList(long id)
+        {
+            var list = await _db.WordLists
+                .Include(w => w.Items)
+                .FirstOrDefaultAsync(w => w.Id == id);
+
+            if (list == null)
+                return NotFound(new { error = "Word list not found." });
+
+            return Ok(new
+            {
+                id = list.Id,
+                name = list.Name,
+                ownerAlias = list.OwnerAlias,
+                joinCode = list.JoinCode,
+                createdAt = list.CreatedAt,
+                items = list.Items.OrderBy(i => i.Position).Select(i => new
+                {
+                    id = i.Id,
+                    text = i.Text,
+                    definition = i.Definition,
+                    category = i.Category,
+                    position = i.Position
+                })
+            });
+        }
+
+        // PUT /api/wordlists/{id} — replace all items in a word list
+        [HttpPut("api/wordlists/{id}")]
+        public async Task<IActionResult> UpdateWordList(long id, [FromBody] UpdateWordListRequest request)
+        {
+            if (request.Words == null || request.Words.Count == 0)
+                return BadRequest(new { error = "Word list must contain at least one word." });
+
+            foreach (var (entry, idx) in request.Words.Select((e, i) => (e, i)))
+            {
+                if (string.IsNullOrWhiteSpace(entry.Text))
+                    return BadRequest(new { error = $"Word at position {idx} is blank." });
+                if (entry.Text.Trim().Length > 100)
+                    return BadRequest(new { error = $"Word at position {idx} exceeds the 100-character limit." });
+            }
+
+            var list = await _db.WordLists
+                .Include(w => w.Items)
+                .FirstOrDefaultAsync(w => w.Id == id);
+
+            if (list == null)
+                return NotFound(new { error = "Word list not found." });
+
+            _db.WordListItems.RemoveRange(list.Items);
+            list.Items = request.Words.Select((e, idx) => new WordListItem
+            {
+                WordListId = list.Id,
+                Text = e.Text.Trim().ToUpper(),
+                Definition = e.Definition?.Trim(),
+                Category = e.Category?.Trim(),
+                Position = idx
+            }).ToList();
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new { id = list.Id, count = list.Items.Count });
         }
 
         // GET /api/rooms/resolve/{code} — returns list metadata for a known code (no gameId)

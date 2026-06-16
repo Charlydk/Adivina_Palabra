@@ -96,27 +96,43 @@ namespace AhorcadoPro.Backend.Services
         /// <param name="words">Word snapshot — used only to validate the list is non-empty.</param>
         /// <param name="wordListId">Database primary key of the WordList entity.</param>
         /// <returns>The generated 6-char join code.</returns>
-        public string CreateRoom(string listName, List<RoomWord> words, int wordListId)
+        public string CreateRoom(string listName, List<RoomWord> words, int wordListId, string? preferredCode = null)
         {
             if (words == null || words.Count == 0)
                 throw new ArgumentException("Word list must contain at least one word.", nameof(words));
 
-            // Generate unique join code with collision retry
             string code;
-            int attempts = 0;
-            do
+
+            if (!string.IsNullOrWhiteSpace(preferredCode))
             {
-                code = GenerateJoinCode();
-                attempts++;
-                if (attempts > 10)
-                {
-                    code = new string(Enumerable.Range(0, 8)
-                        .Select(_ => JoinCodeAlphabet[_random.Next(JoinCodeAlphabet.Length)])
-                        .ToArray());
-                    break;
-                }
+                // Normalize: uppercase alphanumeric only
+                code = new string(preferredCode.Trim().ToUpper()
+                    .Where(char.IsLetterOrDigit).ToArray());
+
+                if (code.Length < 3 || code.Length > 6)
+                    throw new ArgumentException("Custom code must be between 3 and 6 alphanumeric characters.");
+
+                if (_roomCodes.ContainsKey(code))
+                    throw new InvalidOperationException($"El código '{code}' ya está en uso. Elegí otro.");
             }
-            while (_roomCodes.ContainsKey(code));
+            else
+            {
+                // Auto-generate unique join code with collision retry
+                int attempts = 0;
+                do
+                {
+                    code = GenerateJoinCode();
+                    attempts++;
+                    if (attempts > 10)
+                    {
+                        code = new string(Enumerable.Range(0, 8)
+                            .Select(_ => JoinCodeAlphabet[_random.Next(JoinCodeAlphabet.Length)])
+                            .ToArray());
+                        break;
+                    }
+                }
+                while (_roomCodes.ContainsKey(code));
+            }
 
             _roomCodes[code] = wordListId;
             return code;

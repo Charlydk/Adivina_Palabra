@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Ghost, Trophy, LogOut, LogIn, User, CalendarDays } from 'lucide-react';
+import { Ghost, Trophy, LogOut, User, CalendarDays } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Navbar: React.FC = () => {
@@ -40,7 +40,7 @@ const Navbar: React.FC = () => {
             <span className="hidden sm:inline text-sm font-bold uppercase tracking-widest">Ranking</span>
           </Link>
 
-          {user ? (
+          {user && (
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 bg-gray-900 border border-gray-700 px-3 py-2 rounded-lg">
                 <User size={16} className="text-halloween-orange" />
@@ -54,14 +54,6 @@ const Navbar: React.FC = () => {
                 <LogOut size={18} />
               </button>
             </div>
-          ) : (
-            <Link
-              to="/auth"
-              className="bg-halloween-orange hover:bg-amber-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition shadow-md"
-            >
-              <LogIn size={18} />
-              <span className="font-bold text-sm">Ingresar</span>
-            </Link>
           )}
         </nav>
       </div>

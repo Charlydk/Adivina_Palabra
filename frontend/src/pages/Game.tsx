@@ -45,15 +45,13 @@ const Game: React.FC = () => {
   const isDaily = searchParams.get('daily') === 'true';
   const dailyDate = searchParams.get('date') || new Date().toISOString().split('T')[0];
 
-  const alias = localStorage.getItem('alias') || 'Invitado';
-  const profile = localStorage.getItem('userProfile') || 'primaria';
+  const alias = searchParams.get('alias') || localStorage.getItem('alias') || 'Invitado';
   const { game, messages, hint, definition, loading, sendLetter, sendMessage, requestHint, requestDefinition, nextRound } = useGame(gameId, alias);
   const { isMuted, toggleMute } = useGameSounds(game, alias);
   const [chatInput, setChatInput] = useState('');
   const [copied, setCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [sharedResult, setSharedResult] = useState(false);
-  const autoHintFired = useRef(false);
   const definitionFired = useRef(false);
   // Track current word index so we reset definitionFired when a room advances to the next word
   const lastWordIndex = useRef<number>(-1);
@@ -81,7 +79,6 @@ const Game: React.FC = () => {
   const incorrectLetters = isVersus ? (localIsP1 ? p1Incorrect : p2Incorrect) : (game?.incorrectLetters ?? '');
 
   const isMyTurn = !isOnline || game?.currentTurnAlias === alias;
-  const isAccessible = profile === 'adultos_mayores';
 
   const rivalAlias = isVersus ? (localIsP1 ? game?.player2Alias : game?.player1Alias) : null;
   const rivalErrors = isVersus ? (localIsP1 ? p2Incorrect.length : p1Incorrect.length) : 0;
@@ -136,18 +133,6 @@ const Game: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  // Auto-hint after 2nd error for adultos_mayores
-  useEffect(() => {
-    if (!isAccessible || !game || autoHintFired.current || hint || game.status !== 'InProgress') return;
-    const incorrectLen = isVersus
-      ? (localIsP1 ? p1Incorrect.length : p2Incorrect.length)
-      : (game?.incorrectLetters?.length || 0);
-    if (incorrectLen >= 2) {
-      autoHintFired.current = true;
-      requestHint(profile);
-    }
-  }, [game]);
-
   // Reset definition tracking when a room advances to a new word
   useEffect(() => {
     if (!game?.isRoom) return;
@@ -169,7 +154,7 @@ const Game: React.FC = () => {
       return;
     }
     definitionFired.current = true;
-    requestDefinition(profile);
+    requestDefinition('primaria');
   }, [game?.status, game?.currentWordIndex]);
 
   const handleShare = async () => {
@@ -209,7 +194,7 @@ const Game: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center gap-4">
         <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-halloween-orange" />
-        <p className="mt-4 text-halloween-orange creepster text-2xl">Invocando la partida...</p>
+        <p className="mt-4 text-halloween-orange magic-title text-2xl">Invocando la partida...</p>
       </div>
     );
   }
@@ -226,7 +211,7 @@ const Game: React.FC = () => {
         <div className="bg-black bg-opacity-80 rounded-2xl border border-green-500 border-opacity-40 p-10 flex flex-col items-center gap-8">
           <div className="flex items-center gap-3 text-green-400">
             <Monitor size={40} className="animate-pulse" />
-            <h2 className="creepster text-4xl neon-text">Sala de Clase</h2>
+            <h2 className="magic-title text-4xl">Sala de Clase</h2>
           </div>
 
           <p className="text-gray-400 text-lg">
@@ -236,7 +221,7 @@ const Game: React.FC = () => {
           {joinCode && (
             <div className="bg-gray-900 border-2 border-green-500 border-opacity-60 rounded-2xl px-12 py-8 w-full">
               <p className="text-xs text-gray-500 uppercase tracking-widest mb-4">Código de la clase</p>
-              <p className="creepster text-7xl text-green-400 neon-text tracking-widest">
+              <p className="font-mono text-7xl text-green-400 tracking-widest font-black">
                 {joinCode}
               </p>
               <p className="text-gray-500 text-sm mt-4">Mostrá este código en el proyector</p>
@@ -285,7 +270,7 @@ const Game: React.FC = () => {
         <div className="bg-black bg-opacity-80 rounded-2xl border border-halloween-orange border-opacity-40 p-8 flex flex-col items-center gap-6">
           <div className="flex items-center gap-3 text-halloween-orange">
             <Clock size={40} className="animate-pulse" />
-            <h2 className="creepster text-4xl neon-text">Sala de Espera</h2>
+            <h2 className="magic-title text-4xl">Sala de Espera</h2>
           </div>
 
           <p className="text-gray-400">
@@ -352,7 +337,7 @@ const Game: React.FC = () => {
           size="full"
         />
         {!isOver && (
-          <div className="px-6 pb-5 flex flex-wrap justify-center gap-2">
+          <div className="px-6 pt-4 pb-5 flex flex-wrap justify-center gap-2">
             {displayWord(isVersus ? (localIsP1 ? p1Guessed : p2Guessed) : p1Guessed)}
           </div>
         )}
@@ -431,11 +416,11 @@ const Game: React.FC = () => {
 
             {!isOver && (
               <button
-                onClick={() => requestHint(profile)}
-                className={`mt-1 flex items-center gap-2 bg-purple-900 bg-opacity-40 border border-purple-500 text-purple-200 rounded-full hover:bg-opacity-60 transition mx-auto ${isAccessible ? 'px-6 py-3 text-base' : 'px-4 py-1 text-xs'}`}
+                onClick={() => requestHint('primaria')}
+                className="mt-1 flex items-center gap-2 bg-purple-900 bg-opacity-40 border border-purple-500 text-purple-200 rounded-full hover:bg-opacity-60 transition mx-auto px-4 py-1 text-xs"
               >
-                <Sparkles size={isAccessible ? 18 : 14} />
-                {isAccessible ? 'Pedir Pista' : 'Pedir Pista (IA)'}
+                <Sparkles size={14} />
+                Pedir Pista (IA)
               </button>
             )}
             {hint && !isOver && (
@@ -461,7 +446,7 @@ const Game: React.FC = () => {
                       key={letter}
                       onClick={() => sendLetter(letter)}
                       disabled={isGuessed || isWrong || !isMyTurn}
-                      className={`rounded font-bold transition ${isAccessible ? 'w-12 h-12 text-lg' : 'w-9 h-9 text-sm'} ${
+                      className={`rounded font-bold transition w-9 h-9 text-sm ${
                         isWrong
                           ? 'bg-red-900 text-red-400 opacity-50 cursor-not-allowed'
                           : isGuessed
@@ -484,7 +469,7 @@ const Game: React.FC = () => {
               {classroomJoinCode && (
                 <div className="bg-gray-900 border border-green-700 rounded-xl px-6 py-4 text-center w-full">
                   <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">Código de la clase</p>
-                  <p className="creepster text-4xl text-green-400 tracking-widest">{classroomJoinCode}</p>
+                  <p className="font-mono text-4xl text-green-400 tracking-widest font-black">{classroomJoinCode}</p>
                 </div>
               )}
               <div className="bg-gray-900 border border-gray-700 rounded-xl px-6 py-4 text-center w-full">
@@ -521,13 +506,13 @@ const Game: React.FC = () => {
                 animate={{ scale: 1, opacity: 1 }}
                 className="flex flex-col items-center gap-4 w-full"
               >
-                <div className={`magic-title ${localWon ? 'text-green-400' : 'text-red-600'} ${isAccessible ? 'text-5xl' : 'text-4xl'}`}>
+                <div className={`magic-title ${localWon ? 'text-green-400' : 'text-red-600'} text-4xl`}>
                   {localWon ? '¡VICTORIA!' : '¡PERDISTE!'}
                 </div>
                 {!localWon && (
                   <div className="text-center">
                     <p className="text-gray-500 text-[10px] uppercase tracking-widest mb-1">La palabra era</p>
-                    <p className={`text-halloween-orange font-black uppercase tracking-wider ${isAccessible ? 'text-3xl' : 'text-2xl'}`}>
+                    <p className="text-halloween-orange font-black uppercase tracking-wider text-2xl">
                       {game.wordToGuess}
                     </p>
                   </div>
@@ -539,13 +524,13 @@ const Game: React.FC = () => {
                     className="w-full max-w-sm bg-gray-900 bg-opacity-90 border border-purple-500 border-opacity-50 rounded-xl p-5 text-left"
                   >
                     <p className="text-purple-300 font-bold text-xs uppercase tracking-widest mb-3">
-                      {isAccessible ? '✨ Para recordar' : '📚 Definición'}
+                      📚 Definición
                     </p>
-                    <p className={`text-gray-100 leading-relaxed ${isAccessible ? 'text-lg' : 'text-sm'}`}>
+                    <p className="text-gray-100 leading-relaxed text-sm">
                       {game?.isRoom && game.currentDefinition ? game.currentDefinition : definition?.definition}
                     </p>
                     {!game?.isRoom && definition?.bonus && (
-                      <p className={`mt-3 italic ${isAccessible ? 'text-amber-300 text-base' : 'text-yellow-300 text-xs'}`}>
+                      <p className="mt-3 italic text-yellow-300 text-xs">
                         {definition.bonus}
                       </p>
                     )}
@@ -560,7 +545,7 @@ const Game: React.FC = () => {
                   >
                     {game.roomCompleted ? (
                       <div className="text-center flex flex-col items-center gap-3">
-                        <p className={`creepster text-green-400 neon-text ${isAccessible ? 'text-4xl' : 'text-3xl'}`}>
+                        <p className="magic-title text-green-400 text-3xl">
                           ¡Terminaron la lista!
                         </p>
                         <p className="text-gray-400 text-sm">
@@ -577,7 +562,7 @@ const Game: React.FC = () => {
                     ) : (
                       <button
                         onClick={nextRound}
-                        className={`w-full flex items-center justify-center gap-2 bg-green-700 hover:bg-green-600 text-white font-black uppercase tracking-widest rounded-xl transition ${isAccessible ? 'py-4 text-lg' : 'py-3'}`}
+                        className="w-full flex items-center justify-center gap-2 bg-green-700 hover:bg-green-600 text-white font-black uppercase tracking-widest rounded-xl transition py-3"
                       >
                         Siguiente palabra →
                       </button>

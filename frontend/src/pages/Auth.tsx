@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
-import { Ghost, Mail, Lock, User } from 'lucide-react';
+import { GraduationCap, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 
 type Mode = 'login' | 'register';
 
@@ -28,7 +28,7 @@ export default function Auth() {
         navigate('/');
       } else {
         await signUp(email, password, username);
-        setMessage('¡Invocación exitosa! Revisá tu email para confirmar tu cuenta.');
+        setMessage('¡Cuenta creada! Revisá tu email para confirmar antes de ingresar.');
       }
     } catch (err: unknown) {
       setError((err as Error).message || 'Error desconocido');
@@ -49,35 +49,48 @@ export default function Auth() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-black bg-opacity-80 p-8 rounded-2xl border border-halloween-orange border-opacity-40 max-w-md w-full shadow-2xl"
+      className="bg-black/80 p-8 rounded-2xl border border-halloween-orange/30 max-w-md w-full shadow-2xl"
     >
-      <div className="flex items-center justify-center gap-3 mb-8">
-        <Ghost className="text-halloween-orange" size={36} />
-        <h2 className="creepster text-4xl text-halloween-orange">Invocación</h2>
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-2">
+        <button
+          onClick={() => navigate('/')}
+          className="text-gray-600 hover:text-gray-400 transition"
+          aria-label="Volver"
+        >
+          <ArrowLeft size={20} />
+        </button>
+        <div className="flex items-center gap-3">
+          <GraduationCap className="text-halloween-orange" size={32} />
+          <div>
+            <h2 className="magic-title text-2xl text-halloween-orange leading-tight">Panel Docente</h2>
+            <p className="text-gray-600 text-xs">Acceso para docentes</p>
+          </div>
+        </div>
       </div>
 
       {/* Toggle login/register */}
-      <div className="flex rounded-lg overflow-hidden border border-gray-700 mb-6">
+      <div className="flex rounded-lg overflow-hidden border border-gray-800 mb-6 mt-6">
         {(['login', 'register'] as Mode[]).map((m) => (
           <button
             key={m}
             onClick={() => { setMode(m); setError(''); setMessage(''); }}
             className={`flex-1 py-2 text-sm font-bold uppercase tracking-widest transition ${
-              mode === m ? 'bg-halloween-orange text-white' : 'bg-gray-900 text-gray-400 hover:text-white'
+              mode === m ? 'bg-halloween-orange text-white' : 'bg-gray-900 text-gray-500 hover:text-white'
             }`}
           >
-            {m === 'login' ? 'Entrar' : 'Registrarse'}
+            {m === 'login' ? 'Ingresar' : 'Registrarse'}
           </button>
         ))}
       </div>
 
       {error && (
-        <div className="bg-red-900 bg-opacity-40 border border-red-500 text-red-300 px-4 py-3 rounded-lg mb-4 text-sm">
+        <div className="bg-red-900/40 border border-red-500/60 text-red-300 px-4 py-3 rounded-lg mb-4 text-sm">
           {error}
         </div>
       )}
       {message && (
-        <div className="bg-green-900 bg-opacity-40 border border-green-500 text-green-300 px-4 py-3 rounded-lg mb-4 text-sm">
+        <div className="bg-green-900/40 border border-green-500/60 text-green-300 px-4 py-3 rounded-lg mb-4 text-sm">
           {message}
         </div>
       )}
@@ -88,7 +101,7 @@ export default function Auth() {
             <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
             <input
               type="text"
-              placeholder="Alias de Invocador"
+              placeholder="Tu nombre o alias"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
@@ -100,7 +113,7 @@ export default function Auth() {
           <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
           <input
             type="email"
-            placeholder="Email de Invocador"
+            placeholder="Tu email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -111,7 +124,7 @@ export default function Auth() {
           <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
           <input
             type="password"
-            placeholder="Palabra Clave"
+            placeholder="Tu contraseña"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -123,11 +136,15 @@ export default function Auth() {
           disabled={loading}
           className="w-full bg-halloween-orange text-white font-bold py-3 rounded-lg hover:bg-amber-600 transition uppercase tracking-widest disabled:opacity-50"
         >
-          {loading ? 'Invocando...' : mode === 'login' ? 'Entrar al Castillo' : 'Crear Pacto'}
+          {loading
+            ? 'Cargando...'
+            : mode === 'login'
+            ? 'Ingresar'
+            : 'Crear cuenta'}
         </button>
       </form>
 
-      <div className="flex items-center gap-4 text-gray-600 my-4">
+      <div className="flex items-center gap-4 text-gray-700 my-4">
         <div className="h-px bg-gray-800 flex-grow" />
         <span className="text-xs uppercase">o</span>
         <div className="h-px bg-gray-800 flex-grow" />
@@ -140,6 +157,18 @@ export default function Auth() {
         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
         Continuar con Google
       </button>
+
+      {mode === 'login' && (
+        <p className="text-center text-gray-700 text-xs mt-4">
+          ¿Sos nuevo?{' '}
+          <button
+            onClick={() => setMode('register')}
+            className="text-halloween-orange hover:text-amber-400 transition underline"
+          >
+            Creá tu cuenta acá
+          </button>
+        </p>
+      )}
     </motion.div>
   );
 }

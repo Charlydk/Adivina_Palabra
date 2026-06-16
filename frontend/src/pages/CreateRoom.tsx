@@ -40,6 +40,7 @@ export default function CreateRoom() {
 
   const [mode, setMode] = useState<RoomMode>('tarea');
   const [listName, setListName] = useState('');
+  const [customCode, setCustomCode] = useState('');
   const [wordsRaw, setWordsRaw] = useState('');
   const [maxAttempts, setMaxAttempts] = useState(6);
   const [loading, setLoading] = useState(false);
@@ -65,6 +66,8 @@ export default function CreateRoom() {
 
     setLoading(true);
     try {
+      const normalizedCode = customCode.trim().toUpperCase().replace(/[^A-Z0-9]/g, '') || undefined;
+
       if (mode === 'tarea') {
         // Step 1: persist the word list
         const list = await createWordList({
@@ -77,6 +80,7 @@ export default function CreateRoom() {
           wordListId: list.id,
           alias: alias || undefined,
           maxAttempts,
+          joinCode: normalizedCode,
         });
         setResult({ joinCode: room.joinCode, listName: room.listName, totalWords: room.totalWords });
       } else {
@@ -90,6 +94,7 @@ export default function CreateRoom() {
           wordListId: list.id,
           alias: alias || undefined,
           maxAttempts,
+          joinCode: normalizedCode,
         });
         setResult({ joinCode: room.joinCode, listName: room.listName, totalWords: room.totalWords, isClase: true });
       }
@@ -124,10 +129,8 @@ export default function CreateRoom() {
     setStartingClass(true);
     setStartClassError(null);
     try {
-      const teacherAlias = alias || 'Docente';
-      localStorage.setItem('alias', teacherAlias);
-      const joined = await joinRoomApi(result.joinCode, teacherAlias);
-      navigate(`/game/${joined.gameId}`);
+      const joined = await joinRoomApi(result.joinCode, 'Clase');
+      navigate(`/game/${joined.gameId}?alias=Clase`);
     } catch {
       setStartClassError('No se pudo iniciar la clase. Verificá que el servidor esté encendido.');
       setStartingClass(false);
@@ -201,6 +204,7 @@ export default function CreateRoom() {
               onClick={() => {
                 setResult(null);
                 setListName('');
+                setCustomCode('');
                 setWordsRaw('');
                 setMaxAttempts(6);
                 setError(null);
@@ -304,6 +308,24 @@ export default function CreateRoom() {
               maxLength={120}
               className="w-full bg-gray-900 border-2 border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-halloween-orange transition"
             />
+          </div>
+
+          {/* Custom join code */}
+          <div>
+            <label className="block text-gray-400 font-bold uppercase text-sm mb-2">
+              Código de sala <span className="text-gray-600 font-normal normal-case">(opcional)</span>
+            </label>
+            <input
+              type="text"
+              value={customCode}
+              onChange={(e) => setCustomCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
+              placeholder="Ej: PERRO, CLASE1, 2025"
+              maxLength={6}
+              className="w-full bg-gray-900 border-2 border-gray-700 rounded-lg px-4 py-3 text-white font-mono tracking-widest focus:outline-none focus:border-gray-500 transition"
+            />
+            <p className="text-[11px] text-gray-600 mt-1.5 italic">
+              3 a 6 letras o números. Si lo dejás vacío se genera uno automáticamente.
+            </p>
           </div>
 
           {/* Words textarea */}

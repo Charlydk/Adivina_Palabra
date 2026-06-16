@@ -39,6 +39,7 @@ export interface CreateRoomPayload {
   wordListId: number;
   alias?: string;
   maxAttempts?: number;
+  joinCode?: string;
 }
 
 /** Response from POST /api/rooms — no gameId; teacher does not enter a game. */
@@ -101,6 +102,38 @@ export interface WordListSummary {
 export async function getWordLists(ownerAlias: string): Promise<WordListSummary[]> {
   const res = await api.get<WordListSummary[]>('/wordlists', { params: { ownerAlias } });
   return res.data;
+}
+
+export interface WordListItemDetail {
+  id: number;
+  text: string;
+  definition?: string;
+  category?: string;
+  position: number;
+}
+
+export interface WordListDetail {
+  id: number;
+  name: string;
+  ownerAlias: string | null;
+  joinCode: string | null;
+  createdAt: string;
+  items: WordListItemDetail[];
+}
+
+export interface UpdateWordListPayload {
+  words: WordListWord[];
+}
+
+/** Fetch a single word list with all its items (for editing). */
+export async function getWordList(id: number): Promise<WordListDetail> {
+  const res = await api.get<WordListDetail>(`/wordlists/${id}`);
+  return res.data;
+}
+
+/** Replace all items in an existing word list. */
+export async function updateWordList(id: number, payload: UpdateWordListPayload): Promise<void> {
+  await api.put(`/wordlists/${id}`, payload);
 }
 
 // ── Classroom mode helpers ──────────────────────────────────────────────────
