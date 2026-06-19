@@ -441,7 +441,7 @@ export default function Home() {
                 />
                 <button
                   type="submit"
-                  disabled={joinLoading || joinCode.trim().length !== 6}
+                  disabled={joinLoading || joinCode.trim().length < 3}
                   className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white font-black uppercase px-5 py-2 rounded-xl transition"
                 >
                   <LogIn size={16} />
