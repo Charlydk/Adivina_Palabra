@@ -4,7 +4,7 @@ import { useGame } from '../hooks/useGame';
 import { useGameSounds } from '../hooks/useGameSounds';
 import LivingHangman from '../components/LivingHangman';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Sparkles, MessageSquare, Share2, CalendarDays, RotateCcw, Copy, Check, Clock, Volume2, VolumeX, Monitor, Users, Trophy } from 'lucide-react';
+import { Send, Sparkles, MessageSquare, Share2, CalendarDays, RotateCcw, Copy, Check, Clock, Volume2, VolumeX, Monitor, Users, Trophy, Download } from 'lucide-react';
 import { getRoomScoreboard, type ScoreboardEntry } from '../services/api';
 
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
@@ -337,6 +337,32 @@ const Game: React.FC = () => {
       ? Math.round((Date.now() - scoreboardUpdated.getTime()) / 1000)
       : null;
 
+    const exportReport = () => {
+      const listName = game.listName ?? 'Clase';
+      const date = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const time = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+
+      const lines: string[] = [
+        `Reporte de clase — ${listName}`,
+        `Fecha: ${date}  Hora: ${time}  Código: ${joinCode ?? ''}`,
+        `Total de alumnos: ${scoreboard.length}`,
+        '',
+        'Posición,Alumno,Palabras completadas,Total palabras,Errores actuales,Estado',
+        ...scoreboard.map((e, i) => {
+          const statusLabel = e.status === 'Completed' ? 'Terminó' : e.status === 'Lost' ? 'Sin intentos' : 'Jugando';
+          return `${i + 1},"${e.alias}",${e.wordsCompleted},${e.totalWords},${e.currentErrors},${statusLabel}`;
+        }),
+      ];
+
+      const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `reporte_${listName.replace(/\s+/g, '_')}_${date.replace(/\//g, '-')}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+
     return (
       <motion.div
         initial={{ opacity: 0, y: -16 }}
@@ -353,12 +379,24 @@ const Game: React.FC = () => {
                 <p className="text-gray-500 text-sm">{game.listName ?? 'Clase en vivo'}</p>
               </div>
             </div>
-            {joinCode && (
-              <div className="bg-gray-900 border border-green-700 rounded-xl px-6 py-3 text-center">
-                <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">Código</p>
-                <p className="font-mono text-3xl text-green-400 font-black tracking-widest">{joinCode}</p>
-              </div>
-            )}
+            <div className="flex items-center gap-3">
+              {joinCode && (
+                <div className="bg-gray-900 border border-green-700 rounded-xl px-6 py-3 text-center">
+                  <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">Código</p>
+                  <p className="font-mono text-3xl text-green-400 font-black tracking-widest">{joinCode}</p>
+                </div>
+              )}
+              {scoreboard.length > 0 && (
+                <button
+                  onClick={exportReport}
+                  className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-white font-bold px-4 py-3 rounded-xl transition text-sm"
+                  title="Exportar reporte CSV"
+                >
+                  <Download size={16} />
+                  Exportar
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
