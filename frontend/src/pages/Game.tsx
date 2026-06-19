@@ -4,7 +4,8 @@ import { useGame } from '../hooks/useGame';
 import { useGameSounds } from '../hooks/useGameSounds';
 import LivingHangman from '../components/LivingHangman';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Sparkles, MessageSquare, Share2, CalendarDays, RotateCcw, Copy, Check, Clock, Volume2, VolumeX, Monitor } from 'lucide-react';
+import { Send, Sparkles, MessageSquare, Share2, CalendarDays, RotateCcw, Copy, Check, Clock, Volume2, VolumeX, Monitor, Users, Trophy } from 'lucide-react';
+import { getRoomScoreboard, type ScoreboardEntry } from '../services/api';
 
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
@@ -56,6 +57,10 @@ const Game: React.FC = () => {
   // Track current word index so we reset definitionFired when a room advances to the next word
   const lastWordIndex = useRef<number>(-1);
 
+  // Teacher monitoring
+  const [scoreboard, setScoreboard] = useState<ScoreboardEntry[]>([]);
+  const [scoreboardUpdated, setScoreboardUpdated] = useState<Date | null>(null);
+
   // Variables derivadas — deben estar ANTES de cualquier useCallback/useEffect que las use
   const isOnline = game?.mode === 'OnlineVersus' || game?.mode === 'OnlineCoop';
   const isVersus = game?.mode === 'OnlineVersus';
@@ -90,6 +95,23 @@ const Game: React.FC = () => {
   const localStatus = isVersus && gameEnded
     ? (localWon ? 'Won' : 'Lost')
     : (game?.status ?? 'InProgress');
+
+  // Teacher monitoring mode: alias is 'Clase' in a room session
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const joinCode: string | undefined = (game as any)?.joinCode;
+  const isTeacherMonitor = alias === 'Clase' && (game?.isRoom ?? false) && !!joinCode;
+
+  // Poll scoreboard every 4s when teacher is monitoring
+  useEffect(() => {
+    if (!isTeacherMonitor || !joinCode || !gameId) return;
+    const fetch = () =>
+      getRoomScoreboard(joinCode, gameId)
+        .then(data => { setScoreboard(data); setScoreboardUpdated(new Date()); })
+        .catch(() => {});
+    fetch();
+    const id = setInterval(fetch, 4000);
+    return () => clearInterval(id);
+  }, [isTeacherMonitor, joinCode, gameId]);
 
   // Guardar resultado del daily en localStorage al terminar
   useEffect(() => {
@@ -308,6 +330,126 @@ const Game: React.FC = () => {
   }
 
   const isOver = game.status !== 'InProgress' && game.status !== 'Waiting';
+
+  // ── Teacher monitoring view ──────────────────────────────────────────────
+  if (isTeacherMonitor) {
+    const secondsAgo = scoreboardUpdated
+      ? Math.round((Date.now() - scoreboardUpdated.getTime()) / 1000)
+      : null;
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: -16 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-3xl"
+      >
+        {/* Header */}
+        <div className="bg-black bg-opacity-80 rounded-2xl border border-green-500 border-opacity-40 p-6 mb-4">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-3">
+              <Monitor size={28} className="text-green-400" />
+              <div>
+                <h1 className="magic-title text-2xl text-green-400">Panel de Clase</h1>
+                <p className="text-gray-500 text-sm">{game.listName ?? 'Clase en vivo'}</p>
+              </div>
+            </div>
+            {joinCode && (
+              <div className="bg-gray-900 border border-green-700 rounded-xl px-6 py-3 text-center">
+                <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">Código</p>
+                <p className="font-mono text-3xl text-green-400 font-black tracking-widest">{joinCode}</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Scoreboard */}
+        <div className="bg-black bg-opacity-70 rounded-2xl border border-halloween-orange border-opacity-20 overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800">
+            <div className="flex items-center gap-2">
+              <Users size={16} className="text-halloween-orange" />
+              <span className="font-bold text-sm text-gray-300 uppercase tracking-widest">
+                Alumnos — {scoreboard.length} conectado{scoreboard.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+            {secondsAgo !== null && (
+              <span className="text-xs text-gray-600">
+                actualizado hace {secondsAgo}s
+              </span>
+            )}
+          </div>
+
+          {scoreboard.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 py-16 text-gray-600">
+              <Clock size={40} className="opacity-30 animate-pulse" />
+              <p className="text-sm">Esperando que los alumnos ingresen el código...</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-800">
+              {scoreboard.map((entry, i) => {
+                const pct = entry.totalWords > 0 ? (entry.wordsCompleted / entry.totalWords) * 100 : 0;
+                const isCompleted = entry.status === 'Completed';
+                const isLost = entry.status === 'Lost' && !isCompleted;
+                return (
+                  <div key={entry.alias} className="flex items-center gap-4 px-5 py-4">
+                    {/* Rank */}
+                    <div className="w-8 text-center">
+                      {i === 0 && scoreboard.length > 1 ? (
+                        <Trophy size={18} className="text-yellow-400 mx-auto" />
+                      ) : (
+                        <span className="text-gray-600 font-bold text-sm">{i + 1}</span>
+                      )}
+                    </div>
+
+                    {/* Alias */}
+                    <div className="w-32 font-bold text-white truncate">{entry.alias}</div>
+
+                    {/* Progress bar + count */}
+                    <div className="flex-1 flex flex-col gap-1">
+                      <div className="flex justify-between text-xs text-gray-500 mb-0.5">
+                        <span>{entry.wordsCompleted} / {entry.totalWords} palabras</span>
+                        <span className={entry.currentErrors >= entry.maxAttempts ? 'text-red-400' : 'text-gray-500'}>
+                          {entry.currentErrors} error{entry.currentErrors !== 1 ? 'es' : ''}
+                        </span>
+                      </div>
+                      <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+                        <motion.div
+                          className={`h-full rounded-full ${isCompleted ? 'bg-green-500' : 'bg-halloween-orange'}`}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${pct}%` }}
+                          transition={{ duration: 0.4 }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Status badge */}
+                    <div className="w-24 text-right">
+                      {isCompleted ? (
+                        <span className="text-xs font-bold bg-green-900 text-green-300 px-2 py-1 rounded-full">✓ Terminó</span>
+                      ) : isLost ? (
+                        <span className="text-xs font-bold bg-red-950 text-red-400 px-2 py-1 rounded-full">× Sin intentos</span>
+                      ) : (
+                        <span className="text-xs text-gray-500 bg-gray-800 px-2 py-1 rounded-full">Jugando…</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4 text-center">
+          <button
+            onClick={() => navigate('/')}
+            className="text-gray-600 hover:text-gray-400 text-sm transition flex items-center gap-1 mx-auto"
+          >
+            <RotateCcw size={14} />
+            Volver al inicio
+          </button>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <>

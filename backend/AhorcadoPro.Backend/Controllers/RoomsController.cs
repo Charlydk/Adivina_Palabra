@@ -358,5 +358,36 @@ namespace AhorcadoPro.Backend.Controllers
             await Task.CompletedTask; // no async work needed — satisfies async signature
             return Ok(new { gameId });
         }
+
+        // GET /api/rooms/{code}/scoreboard — returns live student progress for a room code
+        [HttpGet("api/rooms/{code}/scoreboard")]
+        public IActionResult GetScoreboard(string code, [FromQuery] string? excludeGameId = null)
+        {
+            var sessions = _gameManager.GetSessionsByCode(code.ToUpper(), excludeGameId);
+
+            var entries = sessions.Select(g =>
+            {
+                int wordsCompleted = g.RoomCompleted
+                    ? g.TotalWords
+                    : (g.Status == GameStatus.Won || g.Status == GameStatus.Lost)
+                        ? g.CurrentWordIndex + 1
+                        : g.CurrentWordIndex;
+
+                return new
+                {
+                    alias = g.Player1Alias ?? "Anónimo",
+                    wordsCompleted,
+                    totalWords = g.TotalWords,
+                    currentErrors = g.IncorrectLetters.Length,
+                    maxAttempts = g.MaxAttempts,
+                    status = g.RoomCompleted ? "Completed" : g.Status.ToString(),
+                };
+            })
+            .OrderByDescending(e => e.wordsCompleted)
+            .ThenBy(e => e.currentErrors)
+            .ToList();
+
+            return Ok(entries);
+        }
     }
 }

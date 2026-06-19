@@ -146,6 +146,17 @@ namespace AhorcadoPro.Backend.Services
             _roomCodes.TryGetValue(code, out var id) ? id : null;
 
         /// <summary>
+        /// Returns all active room sessions that used the given join code,
+        /// optionally excluding a specific session (e.g. the teacher's own session).
+        /// </summary>
+        public IEnumerable<GameSession> GetSessionsByCode(string code, string? excludeGameId = null)
+        {
+            return _activeGames.Values
+                .Where(g => g.JoinCode == code && g.IsRoom && g.Id != excludeGameId)
+                .OrderBy(g => g.CreatedAt);
+        }
+
+        /// <summary>
         /// Creates a brand-new Solo GameSession for a student joining via room code.
         /// Loads the word list from the database. Returns null if the code is unknown
         /// or the word list no longer exists in DB.

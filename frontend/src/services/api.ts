@@ -136,6 +136,24 @@ export async function updateWordList(id: number, payload: UpdateWordListPayload)
   await api.put(`/wordlists/${id}`, payload);
 }
 
+// ── Scoreboard helpers ─────────────────────────────────────────────────────
+
+export interface ScoreboardEntry {
+  alias: string;
+  wordsCompleted: number;
+  totalWords: number;
+  currentErrors: number;
+  maxAttempts: number;
+  status: 'InProgress' | 'Won' | 'Lost' | 'Completed' | 'Waiting';
+}
+
+/** Fetch live student progress for a room join code. */
+export async function getRoomScoreboard(code: string, excludeGameId?: string): Promise<ScoreboardEntry[]> {
+  const params = excludeGameId ? { excludeGameId } : {};
+  const res = await api.get<ScoreboardEntry[]>(`/rooms/${encodeURIComponent(code)}/scoreboard`, { params });
+  return res.data;
+}
+
 // ── AI helpers ─────────────────────────────────────────────────────────────
 
 export interface AiGeneratedWord {
