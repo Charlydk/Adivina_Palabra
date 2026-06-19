@@ -90,12 +90,6 @@ const Game: React.FC = () => {
   const localStatus = isVersus && gameEnded
     ? (localWon ? 'Won' : 'Lost')
     : (game?.status ?? 'InProgress');
-  const p1Status = isVersus && gameEnded
-    ? (game?.winnerAlias === game?.player1Alias ? 'Won' : 'Lost')
-    : (game?.status ?? 'InProgress');
-  const p2Status = isVersus && gameEnded
-    ? (game?.winnerAlias === game?.player2Alias ? 'Won' : 'Lost')
-    : (game?.status ?? 'InProgress');
 
   // Guardar resultado del daily en localStorage al terminar
   useEffect(() => {

@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { School, Plus, ArrowLeft, Copy, Check, RefreshCw, Monitor, BookMarked, Pencil, Save, X } from 'lucide-react';
+import { School, Plus, ArrowLeft, Copy, Check, RefreshCw, Monitor, BookMarked, Pencil, Save, X, Sparkles } from 'lucide-react';
 import {
   getWordLists,
   getWordList,
   createRoom,
   updateWordList,
   joinRoom as joinRoomApi,
+  generateAiWordList,
   type WordListSummary,
 } from '../services/api';
 
@@ -45,6 +46,26 @@ export default function TeacherLists() {
   const [editRaw, setEditRaw] = useState('');
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+
+  // Edit AI generation state
+  const [editAiTheme, setEditAiTheme] = useState('');
+  const [editAiLoading, setEditAiLoading] = useState(false);
+  const [editAiError, setEditAiError] = useState<string | null>(null);
+
+  const generateForEdit = async () => {
+    if (!editAiTheme.trim()) return;
+    setEditAiLoading(true);
+    setEditAiError(null);
+    try {
+      const words = await generateAiWordList(editAiTheme.trim(), 10);
+      const raw = words.map(w => [w.text, w.definition, w.category].filter(Boolean).join(' | ')).join('\n');
+      setEditRaw(raw);
+    } catch {
+      setEditAiError('No se pudo generar. Verificá que el servidor esté encendido.');
+    } finally {
+      setEditAiLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!alias) { setLoading(false); return; }
@@ -243,6 +264,36 @@ export default function TeacherLists() {
                     className="overflow-hidden"
                   >
                     <div className="mb-4 border border-gray-700 rounded-xl p-4 bg-gray-950">
+                      {/* AI generation in edit panel */}
+                      <div className="mb-3 border border-purple-900 border-opacity-40 rounded-lg p-3 bg-purple-950 bg-opacity-20">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <Sparkles size={13} className="text-purple-400" />
+                          <span className="text-purple-400 font-bold uppercase text-xs">Reemplazar con IA</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={editAiTheme}
+                            onChange={(e) => setEditAiTheme(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && generateForEdit()}
+                            placeholder="Ej: Sistema solar, Independencia argentina"
+                            className="flex-1 bg-gray-900 border border-gray-700 rounded-md px-2 py-1.5 text-white text-xs focus:outline-none focus:border-purple-500 transition"
+                          />
+                          <button
+                            type="button"
+                            onClick={generateForEdit}
+                            disabled={editAiLoading || !editAiTheme.trim()}
+                            className="flex items-center gap-1 bg-purple-700 hover:bg-purple-600 disabled:opacity-50 text-white font-bold px-3 py-1.5 rounded-md transition text-xs whitespace-nowrap"
+                          >
+                            {editAiLoading
+                              ? <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-white" />
+                              : <Sparkles size={12} />}
+                            {editAiLoading ? 'Generando...' : 'Generar'}
+                          </button>
+                        </div>
+                        {editAiError && <p className="text-red-400 text-xs mt-1">{editAiError}</p>}
+                      </div>
+
                       <p className="text-xs text-gray-500 mb-2 italic">
                         Una palabra por línea · formato: <code className="text-gray-400">palabra | definición | categoría</code>
                       </p>

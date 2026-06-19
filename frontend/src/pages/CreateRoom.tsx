@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, Copy, Check, Plus, ArrowLeft, Monitor, BookMarked } from 'lucide-react';
-import { createWordList, createRoom, joinRoom as joinRoomApi } from '../services/api';
+import { createWordList, createRoom, joinRoom as joinRoomApi, generateAiWordList } from '../services/api';
+import { Sparkles } from 'lucide-react';
 
 type RoomMode = 'tarea' | 'clase';
 
@@ -49,6 +50,25 @@ export default function CreateRoom() {
   const [codeCopied, setCodeCopied] = useState(false);
   const [startingClass, setStartingClass] = useState(false);
   const [startClassError, setStartClassError] = useState<string | null>(null);
+
+  const [aiTheme, setAiTheme] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const handleGenerateWithAi = async () => {
+    if (!aiTheme.trim()) return;
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const words = await generateAiWordList(aiTheme.trim(), 10);
+      const raw = words.map(w => [w.text, w.definition, w.category].filter(Boolean).join(' | ')).join('\n');
+      setWordsRaw(raw);
+    } catch {
+      setAiError('No se pudo generar la lista. Verificá que el servidor esté encendido.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -326,6 +346,37 @@ export default function CreateRoom() {
             <p className="text-[11px] text-gray-600 mt-1.5 italic">
               3 a 6 letras o números. Si lo dejás vacío se genera uno automáticamente.
             </p>
+          </div>
+
+          {/* AI word generation */}
+          <div className="border border-purple-900 border-opacity-50 rounded-xl p-4 bg-purple-950 bg-opacity-20">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles size={15} className="text-purple-400" />
+              <span className="text-purple-400 font-bold uppercase text-sm">Generar palabras con IA</span>
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={aiTheme}
+                onChange={(e) => setAiTheme(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleGenerateWithAi()}
+                placeholder="Ej: Ecosistemas, Revolución de Mayo, Partes del cuerpo"
+                className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-purple-500 transition"
+              />
+              <button
+                type="button"
+                onClick={handleGenerateWithAi}
+                disabled={aiLoading || !aiTheme.trim()}
+                className="flex items-center gap-2 bg-purple-700 hover:bg-purple-600 disabled:opacity-50 text-white font-bold px-4 py-2 rounded-lg transition text-sm whitespace-nowrap"
+              >
+                {aiLoading
+                  ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white" />
+                  : <Sparkles size={14} />}
+                {aiLoading ? 'Generando...' : 'Generar'}
+              </button>
+            </div>
+            {aiError && <p className="text-red-400 text-xs mt-2">{aiError}</p>}
+            <p className="text-gray-600 text-xs mt-2 italic">Genera 10 palabras con definiciones. Podés editarlas abajo.</p>
           </div>
 
           {/* Words textarea */}

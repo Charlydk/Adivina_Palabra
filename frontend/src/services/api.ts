@@ -136,6 +136,20 @@ export async function updateWordList(id: number, payload: UpdateWordListPayload)
   await api.put(`/wordlists/${id}`, payload);
 }
 
+// ── AI helpers ─────────────────────────────────────────────────────────────
+
+export interface AiGeneratedWord {
+  text: string;
+  definition: string;
+  category: string;
+}
+
+/** Ask the backend to generate a word list for a given topic via Groq. */
+export async function generateAiWordList(theme: string, count = 10): Promise<AiGeneratedWord[]> {
+  const res = await api.post<AiGeneratedWord[]>('/ai/wordlist', { theme, count });
+  return res.data;
+}
+
 // ── Classroom mode helpers ──────────────────────────────────────────────────
 
 export interface CreateClassroomPayload {

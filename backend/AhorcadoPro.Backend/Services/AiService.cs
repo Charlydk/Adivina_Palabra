@@ -9,6 +9,7 @@ namespace AhorcadoPro.Backend.Services
         Task<string> GetHintAsync(string word, string category, string profile = "");
         Task<AiWordResult?> GenerateWordAsync(string? theme = null);
         Task<WordDefinitionResult> GetWordDefinitionAsync(string word, string category, string profile);
+        Task<List<AiWordResult>> GenerateWordListAsync(string theme, int count = 10);
     }
 
     public class AiWordResult
@@ -104,7 +105,43 @@ namespace AhorcadoPro.Backend.Services
             }
         }
 
-        private async Task<string?> CallGroqAsync(string prompt)
+        public async Task<List<AiWordResult>> GenerateWordListAsync(string theme, int count = 10)
+        {
+            var prompt = $"Generá exactamente {count} palabras en español para un juego educativo de vocabulario, " +
+                         $"dirigido a alumnos de 5°, 6° y 7° grado de primaria (10-12 años). Tema: {theme}. " +
+                         "Respondé ÚNICAMENTE con un JSON array válido, sin markdown ni texto adicional. " +
+                         $"Formato: [{{\"word\":\"PALABRA\",\"hint\":\"definición simple en 1-2 oraciones adecuada para niños\",\"category\":\"categoría\"}}] " +
+                         "Las palabras deben estar en MAYÚSCULAS y sin tildes ni caracteres especiales. " +
+                         "Las definiciones y categorías en español neutro.";
+
+            var json = await CallGroqAsync(prompt, maxTokens: 2000);
+            if (string.IsNullOrEmpty(json)) return [];
+
+            try
+            {
+                var clean = json.Trim();
+                if (clean.StartsWith("```")) clean = clean[(clean.IndexOf('\n') + 1)..];
+                if (clean.EndsWith("```")) clean = clean[..clean.LastIndexOf("```")];
+                // Extract the JSON array from response (find first '[' and last ']')
+                var start = clean.IndexOf('[');
+                var end = clean.LastIndexOf(']');
+                if (start >= 0 && end > start) clean = clean[start..(end + 1)];
+                clean = clean.Trim();
+
+                var result = JsonSerializer.Deserialize<List<AiWordResult>>(clean, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+                return result ?? [];
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to parse Groq word list response: {Response}", json);
+                return [];
+            }
+        }
+
+        private async Task<string?> CallGroqAsync(string prompt, int maxTokens = 200)
         {
             var apiKey = _configuration["Groq:ApiKey"];
             if (string.IsNullOrEmpty(apiKey))
@@ -118,7 +155,7 @@ namespace AhorcadoPro.Backend.Services
                 model = Model,
                 messages = new[] { new { role = "user", content = prompt } },
                 temperature = 0.7,
-                max_tokens = 200
+                max_tokens = maxTokens
             };
 
             var request = new HttpRequestMessage(HttpMethod.Post, ApiUrl);
