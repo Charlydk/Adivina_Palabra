@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text.Json;
 using AhorcadoPro.Backend.Models;
 using AhorcadoPro.Backend.Data;
 using Microsoft.EntityFrameworkCore;
@@ -391,12 +392,52 @@ namespace AhorcadoPro.Backend.Services
                 if (game.Status != GameStatus.Won && game.Status != GameStatus.Lost)
                     return game;
 
+                // Record result for the word that just ended
+                game.WordResults.Add(new WordResultEntry
+                {
+                    Position = game.CurrentWordIndex,
+                    Word = game.WordToGuess,
+                    Errors = game.IncorrectLetters.Length,
+                    Won = game.Status == GameStatus.Won
+                });
+
                 int nextIndex = game.CurrentWordIndex + 1;
 
                 if (nextIndex >= game.RoomWords.Count)
                 {
                     // All words completed — mark room as done; do not mutate index or word
                     game.RoomCompleted = true;
+
+                    // Capture values before releasing the lock so the async task reads a consistent snapshot
+                    var capturedGame = game;
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            using var scope = _serviceProvider.CreateScope();
+                            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                            var result = new RoomGameResult
+                            {
+                                JoinCode = capturedGame.JoinCode ?? string.Empty,
+                                ListName = capturedGame.ListName ?? string.Empty,
+                                PlayerAlias = capturedGame.Player1Alias ?? "Anónimo",
+                                WordsCompleted = capturedGame.TotalWords,
+                                TotalWords = capturedGame.TotalWords,
+                                TotalErrors = capturedGame.IncorrectLetters.Length,
+                                MaxAttempts = capturedGame.MaxAttempts,
+                                Status = "Completed",
+                                CompletedAt = DateTime.UtcNow,
+                                WordBreakdownJson = JsonSerializer.Serialize(capturedGame.WordResults)
+                            };
+                            db.RoomGameResults.Add(result);
+                            await db.SaveChangesAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Failed to save room game result for game {GameId}", capturedGame.Id);
+                        }
+                    });
+
                     return game;
                 }
 

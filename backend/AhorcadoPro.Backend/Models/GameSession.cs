@@ -79,6 +79,7 @@ namespace AhorcadoPro.Backend.Models
         public List<RoomWord> RoomWords { get; set; } = new();
         public int CurrentWordIndex { get; set; } = 0;
         public bool RoomCompleted { get; set; } = false;
+        public List<WordResultEntry> WordResults { get; set; } = new();
         public string? JoinCode { get; set; }
         public string? ListName { get; set; }
         public int TotalWords => RoomWords.Count;

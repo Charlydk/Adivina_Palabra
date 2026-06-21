@@ -359,6 +359,30 @@ namespace AhorcadoPro.Backend.Controllers
             return Ok(new { gameId });
         }
 
+        // GET /api/rooms/{code}/history — returns persisted game results for a room code
+        [HttpGet("api/rooms/{code}/history")]
+        public async Task<IActionResult> GetHistory(string code)
+        {
+            var rows = await _db.RoomGameResults
+                .Where(r => r.JoinCode == code.ToUpper())
+                .OrderByDescending(r => r.CompletedAt)
+                .ToListAsync();
+
+            var results = rows.Select(r => new {
+                alias = r.PlayerAlias,
+                wordsCompleted = r.WordsCompleted,
+                totalWords = r.TotalWords,
+                totalErrors = r.TotalErrors,
+                maxAttempts = r.MaxAttempts,
+                status = r.Status,
+                completedAt = r.CompletedAt,
+                wordBreakdown = r.WordBreakdownJson != null
+                    ? System.Text.Json.JsonSerializer.Deserialize<List<WordResultEntry>>(r.WordBreakdownJson)
+                    : null
+            });
+            return Ok(results);
+        }
+
         // GET /api/rooms/{code}/scoreboard — returns live student progress for a room code
         [HttpGet("api/rooms/{code}/scoreboard")]
         public IActionResult GetScoreboard(string code, [FromQuery] string? excludeGameId = null)

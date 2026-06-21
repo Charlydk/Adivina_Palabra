@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { School, Plus, ArrowLeft, Copy, Check, RefreshCw, Monitor, BookMarked, Pencil, Save, X, Sparkles } from 'lucide-react';
+import { School, Plus, ArrowLeft, Copy, Check, RefreshCw, Monitor, BookMarked, Pencil, Save, X, Sparkles, History, ChevronDown, ChevronUp } from 'lucide-react';
 import {
   getWordLists,
   getWordList,
@@ -9,7 +9,10 @@ import {
   updateWordList,
   joinRoom as joinRoomApi,
   generateAiWordList,
+  getRoomHistory,
   type WordListSummary,
+  type RoomHistoryEntry,
+  type WordBreakdownItem,
 } from '../services/api';
 
 interface CodeState {
@@ -52,6 +55,12 @@ export default function TeacherLists() {
   const [editAiLoading, setEditAiLoading] = useState(false);
   const [editAiError, setEditAiError] = useState<string | null>(null);
 
+  // History state
+  const [history, setHistory] = useState<Record<number, RoomHistoryEntry[]>>({});
+  const [historyOpen, setHistoryOpen] = useState<number | null>(null);
+  const [historyLoading, setHistoryLoading] = useState<number | null>(null);
+  const [expandedHistory, setExpandedHistory] = useState<number | null>(null);
+
   const generateForEdit = async () => {
     if (!editAiTheme.trim()) return;
     setEditAiLoading(true);
@@ -64,6 +73,24 @@ export default function TeacherLists() {
       setEditAiError('No se pudo generar. Verificá que el servidor esté encendido.');
     } finally {
       setEditAiLoading(false);
+    }
+  };
+
+  const loadHistory = async (listId: number, joinCode: string) => {
+    if (historyOpen === listId) {
+      setHistoryOpen(null);
+      return;
+    }
+    setHistoryOpen(listId);
+    if (history[listId] !== undefined) return;
+    setHistoryLoading(listId);
+    try {
+      const entries = await getRoomHistory(joinCode);
+      setHistory(prev => ({ ...prev, [listId]: entries }));
+    } catch {
+      setHistory(prev => ({ ...prev, [listId]: [] }));
+    } finally {
+      setHistoryLoading(null);
     }
   };
 
@@ -394,7 +421,116 @@ export default function TeacherLists() {
                     : <Monitor size={14} />}
                   Empezar clase
                 </button>
+                {list.joinCode && (
+                  <button
+                    onClick={() => loadHistory(list.id, list.joinCode!)}
+                    className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-white font-bold px-4 py-2 rounded-xl transition text-sm"
+                  >
+                    <History size={14} />
+                    Historial
+                  </button>
+                )}
               </div>
+
+              {/* History panel */}
+              <AnimatePresence>
+                {historyOpen === list.id && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-3 border border-gray-800 rounded-xl bg-gray-900 p-4">
+                      <p className="text-xs text-gray-500 uppercase tracking-widest mb-3 font-bold">Partidas completadas</p>
+                      {historyLoading === list.id ? (
+                        <div className="flex justify-center py-4">
+                          <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-halloween-orange" />
+                        </div>
+                      ) : !history[list.id] || history[list.id].length === 0 ? (
+                        <p className="text-gray-600 text-sm italic text-center py-4">
+                          Aún no hay partidas registradas para esta lista.
+                        </p>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="text-gray-600 text-xs uppercase tracking-wide border-b border-gray-800">
+                                <th className="text-left pb-2 pr-3">Alumno</th>
+                                <th className="text-center pb-2 px-3">Palabras</th>
+                                <th className="text-center pb-2 px-3">Errores</th>
+                                <th className="text-right pb-2 pl-3">Fecha</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {history[list.id].map((entry, idx) => (
+                                <>
+                                  <tr key={idx} className="border-b border-gray-800 last:border-0">
+                                    <td className="py-2 pr-3 text-white font-medium">
+                                      <div className="flex items-center gap-1">
+                                        {entry.wordBreakdown && entry.wordBreakdown.length > 0 && (
+                                          <button
+                                            onClick={() => setExpandedHistory(expandedHistory === idx ? null : idx)}
+                                            className="text-gray-500 hover:text-gray-300 transition"
+                                          >
+                                            {expandedHistory === idx
+                                              ? <ChevronUp size={14} />
+                                              : <ChevronDown size={14} />}
+                                          </button>
+                                        )}
+                                        {entry.alias}
+                                      </div>
+                                    </td>
+                                    <td className="py-2 px-3 text-center text-gray-300">
+                                      {entry.wordsCompleted}/{entry.totalWords}
+                                    </td>
+                                    <td className="py-2 px-3 text-center text-gray-300">{entry.totalErrors}</td>
+                                    <td className="py-2 pl-3 text-right text-gray-500 text-xs whitespace-nowrap">
+                                      {new Date(entry.completedAt).toLocaleString('es-AR')}
+                                    </td>
+                                  </tr>
+                                  {expandedHistory === idx && entry.wordBreakdown && entry.wordBreakdown.length > 0 && (
+                                    <tr key={`breakdown-${idx}`} className="border-b border-gray-800">
+                                      <td colSpan={4} className="pb-3 pt-1 px-1">
+                                        <div className="bg-gray-950 rounded-lg overflow-x-auto">
+                                          <table className="w-full text-xs">
+                                            <thead>
+                                              <tr className="text-gray-600 uppercase tracking-wide border-b border-gray-800">
+                                                <th className="text-left py-1.5 px-3">#</th>
+                                                <th className="text-left py-1.5 px-3">Palabra</th>
+                                                <th className="text-center py-1.5 px-3">Errores</th>
+                                                <th className="text-center py-1.5 px-3">Resultado</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {entry.wordBreakdown.map((item: WordBreakdownItem) => (
+                                                <tr key={item.position} className="border-b border-gray-800 last:border-0">
+                                                  <td className="py-1.5 px-3 text-gray-500">{item.position + 1}</td>
+                                                  <td className="py-1.5 px-3 text-gray-300 font-mono">{item.word}</td>
+                                                  <td className="py-1.5 px-3 text-center text-gray-400">{item.errors}</td>
+                                                  <td className="py-1.5 px-3 text-center">
+                                                    {item.won
+                                                      ? <span className="text-green-400">&#10003; Adivinó</span>
+                                                      : <span className="text-red-400">&#10007; Sin intentos</span>}
+                                                  </td>
+                                                </tr>
+                                              ))}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           ))}
         </div>

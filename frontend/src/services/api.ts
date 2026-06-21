@@ -154,6 +154,31 @@ export async function getRoomScoreboard(code: string, excludeGameId?: string): P
   return res.data;
 }
 
+// ── Room history helpers ────────────────────────────────────────────────────
+
+export interface WordBreakdownItem {
+  position: number;
+  word: string;
+  errors: number;
+  won: boolean;
+}
+
+export interface RoomHistoryEntry {
+  alias: string;
+  wordsCompleted: number;
+  totalWords: number;
+  totalErrors: number;
+  maxAttempts: number;
+  status: string;
+  completedAt: string;
+  wordBreakdown: WordBreakdownItem[] | null;
+}
+
+export async function getRoomHistory(code: string): Promise<RoomHistoryEntry[]> {
+  const res = await api.get<RoomHistoryEntry[]>(`/rooms/${encodeURIComponent(code)}/history`);
+  return res.data;
+}
+
 // ── AI helpers ─────────────────────────────────────────────────────────────
 
 export interface AiGeneratedWord {

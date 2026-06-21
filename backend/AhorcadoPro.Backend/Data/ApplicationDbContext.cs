@@ -11,6 +11,7 @@ namespace AhorcadoPro.Backend.Data
         public DbSet<Score> Scores { get; set; }
         public DbSet<WordList> WordLists { get; set; }
         public DbSet<WordListItem> WordListItems { get; set; }
+        public DbSet<RoomGameResult> RoomGameResults { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -65,6 +66,21 @@ namespace AhorcadoPro.Backend.Data
                  .WithMany(w => w.Items)
                  .HasForeignKey(i => i.WordListId)
                  .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<RoomGameResult>(e => {
+                e.ToTable("room_game_results");
+                e.Property(r => r.Id).HasColumnName("id");
+                e.Property(r => r.JoinCode).HasColumnName("join_code");
+                e.Property(r => r.ListName).HasColumnName("list_name");
+                e.Property(r => r.PlayerAlias).HasColumnName("player_alias");
+                e.Property(r => r.WordsCompleted).HasColumnName("words_completed");
+                e.Property(r => r.TotalWords).HasColumnName("total_words");
+                e.Property(r => r.TotalErrors).HasColumnName("total_errors");
+                e.Property(r => r.MaxAttempts).HasColumnName("max_attempts");
+                e.Property(r => r.Status).HasColumnName("status");
+                e.Property(r => r.CompletedAt).HasColumnName("completed_at");
+                e.Property(r => r.WordBreakdownJson).HasColumnName("word_breakdown").HasColumnType("jsonb");
             });
         }
     }
