@@ -19,16 +19,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const syncAlias = (user: User | null) => {
+    if (user && !localStorage.getItem('alias')) {
+      const name =
+        user.user_metadata?.full_name ||
+        user.user_metadata?.name ||
+        user.email?.split('@')[0] ||
+        'Docente';
+      localStorage.setItem('alias', name);
+    }
+  };
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      syncAlias(session?.user ?? null);
       setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      syncAlias(session?.user ?? null);
     });
 
     return () => subscription.unsubscribe();
