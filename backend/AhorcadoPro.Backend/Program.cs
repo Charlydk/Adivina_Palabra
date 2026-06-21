@@ -9,6 +9,10 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Bind to PORT env var set by Render; fall back to 5000 locally
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
+builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+
 builder.Services.AddControllers()
     .AddJsonOptions(o =>
         o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
@@ -32,15 +36,21 @@ builder.Services.AddAuthentication("Supabase")
 builder.Services.AddAuthorization();
 
 // CORS — SignalR requiere credenciales con origins específicos
+var corsOrigins = new List<string>
+{
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://ahorcado-pro.vercel.app",
+    "https://ahorcado-pro.netlify.app"
+};
+var extraOrigins = builder.Configuration["CorsOrigins"];
+if (!string.IsNullOrEmpty(extraOrigins))
+    corsOrigins.AddRange(extraOrigins.Split(',', StringSplitOptions.RemoveEmptyEntries));
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("SignalRPolicy", policy =>
-        policy.WithOrigins(
-                "http://localhost:5173",
-                "http://127.0.0.1:5173",
-                "https://ahorcado-pro.vercel.app",
-                "https://ahorcado-pro.netlify.app"
-              )
+        policy.WithOrigins(corsOrigins.ToArray())
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials());

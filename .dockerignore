@@ -1,0 +1,8 @@
+frontend/
+backend/AhorcadoPro.Tests/
+**/.git
+**/.gitignore
+**/bin
+**/obj
+**/*.user
+**/appsettings.Development.json
