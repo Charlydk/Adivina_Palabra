@@ -27,7 +27,10 @@ function App() {
             </Routes>
           </main>
           <footer className="bg-black bg-opacity-80 text-white py-4 flex flex-col items-center gap-2">
-            <p className="magic-title text-base text-halloween-orange text-center">Ayuda a Diego: Aprendiendo con IA &copy; {new Date().getFullYear()}</p>
+            <p className="magic-title text-base text-halloween-orange text-center">
+              Ayuda a Diego: Aprendiendo con IA &copy; {new Date().getFullYear()}
+              <span className="text-gray-600 text-xs font-sans ml-2">v{__APP_VERSION__}</span>
+            </p>
             <div className="flex items-center gap-3">
               <img src="/img/logo_utn2.jpg" alt="Universidad Tecnológica Nacional" className="h-12 w-auto opacity-90" />
               <p className="text-gray-400 text-xs text-center">
