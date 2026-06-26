@@ -64,7 +64,12 @@ namespace AhorcadoPro.Backend.Services
                 RemainingAttempts = maxAttempts,
                 Player1Alias = creatorAlias,
                 Player1RemainingAttempts = maxAttempts,
-                Player2RemainingAttempts = maxAttempts
+                Player2RemainingAttempts = maxAttempts,
+                // Remember generation params so "Play Again" keeps the same theme/category.
+                // Skip when a fixed word was provided (Versus Local / daily) — those don't regenerate.
+                Theme = wordOverride == null ? theme : null,
+                EducationalCategory = educationalCategory,
+                Profile = profile
             };
 
             _activeGames[game.Id] = game;
@@ -449,6 +454,71 @@ namespace AhorcadoPro.Backend.Services
                 game.GuessedLetters = string.Empty;
                 game.IncorrectLetters = string.Empty;
                 game.RemainingAttempts = game.MaxAttempts;
+                game.Status = GameStatus.InProgress;
+                game.FinishedAt = null;
+                game.LastActivity = DateTime.UtcNow;
+
+                return game;
+            }
+            finally
+            {
+                game.StateLock.Release();
+            }
+        }
+
+        /// <summary>
+        /// Restarts a concluded non-room game with a fresh random word, keeping both player
+        /// connections in place so they can play again without generating a new link.
+        /// No-op for room sessions or while a round is still in progress.
+        /// </summary>
+        public async Task<GameSession?> RestartGame(string gameId)
+        {
+            if (!_activeGames.TryGetValue(gameId, out var game)) return null;
+
+            await game.StateLock.WaitAsync();
+            try
+            {
+                if (game.IsRoom) return game;
+                if (game.Status != GameStatus.Won && game.Status != GameStatus.Lost) return game;
+
+                // Reuse the original generation params so the theme/category carries over.
+                string? wordText = null;
+                string? category = null;
+                if (!string.IsNullOrEmpty(game.Theme))
+                {
+                    using var scope = _serviceProvider.CreateScope();
+                    var ai = scope.ServiceProvider.GetRequiredService<IAiService>();
+                    var aiResult = await ai.GenerateWordAsync(game.Theme);
+                    if (aiResult != null)
+                    {
+                        wordText = aiResult.Word;
+                        category = aiResult.Category;
+                    }
+                }
+                if (wordText == null)
+                {
+                    var word = await GetRandomWord(game.EducationalCategory, game.Profile);
+                    wordText = word?.Text.ToUpper() ?? "AHORCADO";
+                    category = word?.Category ?? game.Category;
+                }
+                game.WordToGuess = wordText.ToUpper();
+                game.Category = category ?? game.Category;
+
+                // Shared pool (Solo / Coop)
+                game.GuessedLetters = string.Empty;
+                game.IncorrectLetters = string.Empty;
+                game.RemainingAttempts = game.MaxAttempts;
+
+                // Per-player state (Versus)
+                game.Player1Progress = string.Empty;
+                game.Player2Progress = string.Empty;
+                game.Player1Incorrect = string.Empty;
+                game.Player2Incorrect = string.Empty;
+                game.Player1RemainingAttempts = game.MaxAttempts;
+                game.Player2RemainingAttempts = game.MaxAttempts;
+                game.CurrentTurnPlayerId = game.Player1Id;
+
+                game.WinnerAlias = null;
                 game.Status = GameStatus.InProgress;
                 game.FinishedAt = null;
                 game.LastActivity = DateTime.UtcNow;

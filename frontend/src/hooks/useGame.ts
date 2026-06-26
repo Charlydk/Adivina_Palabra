@@ -60,14 +60,13 @@ export function useGame(gameId: string | undefined, alias: string | null) {
     };
   }, [gameId, alias, session?.access_token]);
 
-  // Clear hint and definition when a room advances to the next word
+  // Clear hint and definition whenever the word changes — covers a room advancing to
+  // the next word and a non-room game being restarted with a fresh word.
   useEffect(() => {
-    if (game?.isRoom) {
-      setHint(null);
-      setDefinition(null);
-    }
+    setHint(null);
+    setDefinition(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [game?.currentWordIndex]);
+  }, [game?.wordToGuess]);
 
   const sendLetter = async (letter: string) => {
     if (gameId) await gameHub.processLetter(gameId, letter);
@@ -90,5 +89,10 @@ export function useGame(gameId: string | undefined, alias: string | null) {
     if (gameId) await gameHub.nextRound(gameId);
   };
 
-  return { game, messages, hint, definition, loading, sendLetter, sendMessage, requestHint, requestDefinition, nextRound };
+  /** Restart a concluded non-room game with a new word, keeping both players connected. */
+  const playAgain = async () => {
+    if (gameId) await gameHub.playAgain(gameId);
+  };
+
+  return { game, messages, hint, definition, loading, sendLetter, sendMessage, requestHint, requestDefinition, nextRound, playAgain };
 }

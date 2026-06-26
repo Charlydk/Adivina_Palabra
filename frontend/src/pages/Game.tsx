@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { useGame } from '../hooks/useGame';
 import { useGameSounds } from '../hooks/useGameSounds';
 import LivingHangman from '../components/LivingHangman';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Sparkles, MessageSquare, Share2, CalendarDays, RotateCcw, Copy, Check, Clock, Volume2, VolumeX, Monitor, Users, Trophy, Download } from 'lucide-react';
+import { Send, Sparkles, MessageSquare, Share2, CalendarDays, RotateCcw, Copy, Check, Clock, Volume2, VolumeX, Monitor, Users, Trophy, Download, Gamepad2 } from 'lucide-react';
 import { getRoomScoreboard, type ScoreboardEntry } from '../services/api';
 
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
@@ -43,11 +43,23 @@ const Game: React.FC = () => {
   const { gameId } = useParams<{ gameId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const isDaily = searchParams.get('daily') === 'true';
   const dailyDate = searchParams.get('date') || new Date().toISOString().split('T')[0];
 
-  const alias = searchParams.get('alias') || localStorage.getItem('alias') || 'Invitado';
-  const { game, messages, hint, definition, loading, sendLetter, sendMessage, requestHint, requestDefinition, nextRound } = useGame(gameId, alias);
+  // Alias resolution:
+  // - `?alias=` in the URL (classroom host) → use it.
+  // - Router state from Home (creator or joining student) → use it; it never leaks via the shared link.
+  // - Otherwise (player 2 opening a bare shared link) → ask for a nickname before joining.
+  const urlAlias = searchParams.get('alias');
+  const navAlias = (location.state as { alias?: string } | null)?.alias ?? null;
+  const [confirmedAlias, setConfirmedAlias] = useState<string | null>(
+    urlAlias || navAlias || (isDaily ? localStorage.getItem('alias') || 'Invitado' : null),
+  );
+  const [nickInput, setNickInput] = useState(localStorage.getItem('alias') || '');
+  const alias = confirmedAlias ?? 'Invitado';
+
+  const { game, messages, hint, definition, loading, sendLetter, sendMessage, requestHint, requestDefinition, nextRound, playAgain } = useGame(gameId, confirmedAlias);
   const { isMuted, toggleMute } = useGameSounds(game, alias);
   const [chatInput, setChatInput] = useState('');
   const [copied, setCopied] = useState(false);
@@ -149,15 +161,19 @@ const Game: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  // Reset definition tracking when a room advances to a new word
+  // Reset definition tracking when a room advances to a new word,
+  // or when a non-room game is restarted (status flips back to InProgress).
   useEffect(() => {
-    if (!game?.isRoom) return;
-    const idx = game.currentWordIndex ?? 0;
-    if (idx !== lastWordIndex.current) {
-      lastWordIndex.current = idx;
+    if (game?.isRoom) {
+      const idx = game.currentWordIndex ?? 0;
+      if (idx !== lastWordIndex.current) {
+        lastWordIndex.current = idx;
+        definitionFired.current = false;
+      }
+    } else if (game?.status === 'InProgress') {
       definitionFired.current = false;
     }
-  }, [game?.currentWordIndex, game?.isRoom]);
+  }, [game?.currentWordIndex, game?.isRoom, game?.status]);
 
   // Request word definition automatically when the game ends (or a room round ends).
   // In rooms with a teacher-provided definition, currentDefinition is already set on the
@@ -172,6 +188,15 @@ const Game: React.FC = () => {
     definitionFired.current = true;
     requestDefinition('primaria');
   }, [game?.status, game?.currentWordIndex]);
+
+  // Versus Local replays with a freshly-typed secret word; other modes restart in place.
+  const handlePlayAgain = () => {
+    if (game?.mode === 'VersusLocal') {
+      navigate('/', { state: { openVersusWord: true } });
+    } else {
+      playAgain();
+    }
+  };
 
   const handleShare = async () => {
     const text = generateShareText(game, dailyDate);
@@ -205,6 +230,50 @@ const Game: React.FC = () => {
         {char === ' ' ? ' ' : progress.includes(char) ? char : ''}
       </span>
     ));
+
+  // Player 2 joined via a shared link without a nickname — ask before connecting.
+  if (!confirmedAlias) {
+    const confirmNick = () => {
+      const name = nickInput.trim();
+      if (name.length < 2) return;
+      localStorage.setItem('alias', name);
+      setConfirmedAlias(name);
+    };
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="max-w-md w-full"
+      >
+        <div className="bg-black/85 rounded-2xl border-2 border-green-500/50 p-8 flex flex-col items-center gap-5">
+          <div className="bg-green-900/40 rounded-full p-4">
+            <Users size={32} className="text-green-400" />
+          </div>
+          <div className="text-center">
+            <h2 className="magic-title text-3xl text-green-400">¡Te invitaron a jugar!</h2>
+            <p className="text-gray-400 text-sm mt-2">Elegí tu nombre para entrar a la partida</p>
+          </div>
+          <input
+            type="text"
+            value={nickInput}
+            onChange={(e) => setNickInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') confirmNick(); }}
+            placeholder="Tu nombre..."
+            maxLength={20}
+            autoFocus
+            className="w-full bg-gray-900 border-2 border-gray-700 focus:border-green-500 rounded-xl px-4 py-3 text-white text-lg text-center focus:outline-none transition"
+          />
+          <button
+            onClick={confirmNick}
+            disabled={nickInput.trim().length < 2}
+            className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white font-black uppercase tracking-widest px-4 py-3 rounded-xl transition"
+          >
+            Entrar a jugar
+          </button>
+        </div>
+      </motion.div>
+    );
+  }
 
   if (loading || !game) {
     return (
@@ -504,7 +573,7 @@ const Game: React.FC = () => {
           </div>
         )}
         <LivingHangman
-          key={`hero-${game?.currentWordIndex ?? 0}`}
+          key={`hero-${game?.currentWordIndex ?? 0}-${game?.wordToGuess ?? ''}`}
           errors={isVersus ? (localIsP1 ? p1Incorrect.length : p2Incorrect.length) : p1Incorrect.length}
           maxErrors={game.maxAttempts}
           status={localStatus}
@@ -539,6 +608,7 @@ const Game: React.FC = () => {
             <div className="mt-2 border-t border-gray-700 pt-3 w-full flex flex-col items-center gap-2">
               <h4 className="text-sm font-bold text-halloween-orange">{rivalAlias} (rival)</h4>
               <LivingHangman
+                key={`rival-${game?.currentWordIndex ?? 0}-${game?.wordToGuess ?? ''}`}
                 size="sm"
                 errors={rivalErrors}
                 maxErrors={game.maxAttempts}
@@ -745,7 +815,7 @@ const Game: React.FC = () => {
                 )}
 
                 {!game?.isRoom && (
-                  <div className="flex gap-3">
+                  <div className="flex flex-wrap justify-center gap-3">
                     {isDaily && (
                       <button
                         onClick={handleShare}
@@ -755,12 +825,28 @@ const Game: React.FC = () => {
                         {copied ? '¡Copiado!' : 'Compartir'}
                       </button>
                     )}
+                    {!isDaily && (
+                      <button
+                        onClick={handlePlayAgain}
+                        className="flex items-center gap-2 bg-green-600 text-white font-bold px-5 py-2 rounded-xl hover:bg-green-500 transition"
+                      >
+                        <RotateCcw size={16} />
+                        Jugar de nuevo
+                      </button>
+                    )}
+                    <button
+                      onClick={() => navigate('/', { state: { step: 2 } })}
+                      className="flex items-center gap-2 bg-gray-700 text-gray-200 font-bold px-5 py-2 rounded-xl hover:bg-gray-600 transition"
+                    >
+                      <Gamepad2 size={16} />
+                      Elegir otro modo
+                    </button>
                     <button
                       onClick={() => navigate('/')}
-                      className="flex items-center gap-2 bg-gray-800 text-gray-300 font-bold px-5 py-2 rounded-xl hover:bg-gray-700 transition"
+                      className="flex items-center gap-2 bg-gray-800 text-gray-400 font-bold px-5 py-2 rounded-xl hover:bg-gray-700 transition"
                     >
                       <RotateCcw size={16} />
-                      Volver
+                      Inicio
                     </button>
                   </div>
                 )}

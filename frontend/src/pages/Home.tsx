@@ -1,12 +1,12 @@
 import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
 import {
   User, Users, Zap, Sparkles, BookOpen,
   LogIn, Gamepad2, ArrowLeft, GraduationCap,
-  BookMarked, Plus, Play,
+  BookMarked, Plus, Play, Eye, EyeOff,
 } from 'lucide-react';
 import { joinRoom as joinRoomApi } from '../services/api';
 import { useAuth } from '../context/useAuth';
@@ -30,7 +30,7 @@ const MODES: GameMode[] = [
   },
   {
     id: 1, name: 'Versus Local', Icon: Gamepad2,
-    desc: 'Turnate con un amigo en la misma pantalla. El que adivine más gana.',
+    desc: 'Escribí una palabra secreta y pasale el dispositivo a tu compañero para que la adivine.',
     border: 'border-purple-500/40', iconBg: 'bg-purple-900/40', iconText: 'text-purple-400', btnBg: 'bg-purple-600 hover:bg-purple-500',
   },
   {
@@ -54,9 +54,16 @@ const CATEGORY_OPTIONS = [
 
 export default function Home() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
 
-  const [step, setStep] = useState<0 | 1 | 2>(0);
+  // Coming back from a game: jump straight to mode selection (and optionally the
+  // Versus Local secret-word modal) instead of replaying the intro video.
+  const navState = location.state as { step?: number; openVersusWord?: boolean } | null;
+  const aliasStored = localStorage.getItem('alias') || '';
+  const skipToModes = (navState?.step === 2 || navState?.openVersusWord === true) && aliasStored.length > 0;
+
+  const [step, setStep] = useState<0 | 1 | 2>(skipToModes ? 2 : 0);
   const [videoLeaving, setVideoLeaving] = useState(false);
   const [videoStarted, setVideoStarted] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -70,7 +77,23 @@ export default function Home() {
   const [joinLoading, setJoinLoading] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
 
+  const [showVersusWord, setShowVersusWord] = useState(navState?.openVersusWord === true && aliasStored.length > 0);
+  const [versusWord, setVersusWord] = useState('');
+  const [revealWord, setRevealWord] = useState(false);
+
   const hasAlias = alias.trim().length > 0;
+
+  // Keep only letters the in-game keyboard supports (A-Z + spaces).
+  // Uppercases and strips accents; Ñ collapses to N (the keyboard has no Ñ).
+  const sanitizeWord = (raw: string) =>
+    raw
+      .toUpperCase()
+      .normalize('NFD')        // split accented letters into base + combining mark
+      .replace(/[^A-Z ]/g, '') // drop combining marks, digits, punctuation, Ñ→N happens via base char
+      .replace(/\s+/g, ' ');
+
+  const cleanVersusWord = sanitizeWord(versusWord).trim();
+  const versusWordValid = cleanVersusWord.replace(/ /g, '').length >= 3;
 
   const goToModes = () => {
     if (!hasAlias) return;
@@ -78,18 +101,31 @@ export default function Home() {
     setStep(2);
   };
 
-  const startGame = async (mode: number) => {
+  // Versus Local always lets one player set a secret word for the other to guess.
+  const handleModeClick = (mode: number) => {
+    if (mode === 1) {
+      setVersusWord('');
+      setRevealWord(false);
+      setShowVersusWord(true);
+      return;
+    }
+    startGame(mode);
+  };
+
+  const startGame = async (mode: number, customWord?: string) => {
     setLoading(true);
     try {
       const response = await api.post('/games/create', {
         mode,
         alias: alias.trim(),
         maxAttempts: 6,
-        theme: theme.trim() || null,
-        category: category || null,
+        theme: customWord ? null : theme.trim() || null,
+        category: customWord ? null : category || null,
         profile: 'primaria',
+        word: customWord || null,
       });
-      navigate(`/game/${response.data.id}`);
+      // Pass alias via router state (not the URL) so it never leaks through the shared link.
+      navigate(`/game/${response.data.id}`, { state: { alias: alias.trim() } });
     } catch (err) {
       console.error(err);
       alert('Error al crear la partida. ¿Está el backend encendido?');
@@ -109,7 +145,7 @@ export default function Home() {
     setJoinLoading(true);
     try {
       const result = await joinRoomApi(code, alias.trim());
-      navigate(`/game/${result.gameId}`);
+      navigate(`/game/${result.gameId}`, { state: { alias: alias.trim() } });
     } catch (err: unknown) {
       const axiosErr = err as { response?: { status?: number } };
       if (axiosErr?.response?.status === 404) {
@@ -207,6 +243,14 @@ export default function Home() {
           onEnded={advanceFromVideo}
         />
 
+        {/* UTN credit — discreet overlay in the top-left corner */}
+        <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/50 rounded-lg px-3 py-1.5 pointer-events-none">
+          <img src="/img/logo_utn.png" alt="Universidad Tecnológica Nacional" className="h-8 w-auto opacity-90" />
+          <p className="text-gray-300 text-[10px] leading-tight max-w-[140px]">
+            Desarrollado por Fabián Bernardino — Tecnología Educativa I, UTN
+          </p>
+        </div>
+
         {/* Pre-start overlay — click triggers user gesture so audio works */}
         {!videoStarted && (
           <motion.div
@@ -298,6 +342,15 @@ export default function Home() {
             Soy docente — ingresar
           </button>
         </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5, duration: 0.5 }}
+          className="flex flex-col items-center mt-4"
+        >
+          <img src="/img/logo_utn.png" alt="Universidad Tecnológica Nacional" className="h-40 w-auto opacity-90" />
+        </motion.div>
       </div>
     );
   }
@@ -386,7 +439,7 @@ export default function Home() {
                       {mode.desc}
                     </p>
                     <button
-                      onClick={(e) => { e.stopPropagation(); startGame(mode.id); }}
+                      onClick={(e) => { e.stopPropagation(); handleModeClick(mode.id); }}
                       disabled={loading}
                       className={`${mode.btnBg} disabled:opacity-50 text-white font-black uppercase tracking-widest px-4 py-1.5 rounded-xl transition text-[10px]`}
                     >
@@ -454,6 +507,68 @@ export default function Home() {
             </div>
           </motion.div>
         </div>
+
+        {/* Versus Local — secret word entry */}
+        {showVersusWord && (
+          <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-[90] p-4">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="w-full max-w-md bg-black/90 border-2 border-purple-500/50 rounded-2xl p-6 flex flex-col gap-4"
+            >
+              <div className="flex items-center gap-3">
+                <div className="bg-purple-900/40 rounded-full p-3">
+                  <Gamepad2 size={22} className="text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="font-black text-white uppercase tracking-widest text-sm">Palabra secreta</h3>
+                  <p className="text-purple-400 text-xs">Escribila sin que tu compañero la vea</p>
+                </div>
+              </div>
+
+              <div className="relative">
+                <input
+                  type={revealWord ? 'text' : 'password'}
+                  value={versusWord}
+                  onChange={(e) => setVersusWord(sanitizeWord(e.target.value))}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && versusWordValid) startGame(1, cleanVersusWord); }}
+                  placeholder="Tu palabra..."
+                  maxLength={20}
+                  autoFocus
+                  className="w-full bg-gray-900 border-2 border-gray-700 focus:border-purple-500 rounded-xl px-4 py-3 pr-12 text-white uppercase tracking-[0.2em] text-lg text-center focus:outline-none transition"
+                />
+                <button
+                  type="button"
+                  onClick={() => setRevealWord((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-purple-400 transition"
+                  aria-label={revealWord ? 'Ocultar palabra' : 'Mostrar palabra'}
+                >
+                  {revealWord ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+
+              <p className="text-[11px] text-gray-500 text-center">
+                Solo letras (sin Ñ ni tildes), mínimo 3. Pueden ser dos palabras.
+              </p>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowVersusWord(false)}
+                  className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 font-black uppercase tracking-widest px-4 py-2.5 rounded-xl transition text-xs"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => startGame(1, cleanVersusWord)}
+                  disabled={!versusWordValid || loading}
+                  className="flex-[2] bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-black uppercase tracking-widest px-4 py-2.5 rounded-xl transition text-xs"
+                >
+                  ¡A jugar!
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
 
         {loading && (
           <div className="fixed inset-0 bg-black/80 flex flex-col items-center justify-center z-[100]">

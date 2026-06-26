@@ -74,6 +74,17 @@ namespace AhorcadoPro.Backend.Hubs
                 await Clients.Group(gameId).SendAsync("GameUpdated", updated);
         }
 
+        /// <summary>
+        /// Restarts a concluded non-room game with a new word for the same connected players.
+        /// Lets Coop/Versus partners play again without sharing a new link.
+        /// </summary>
+        public async Task PlayAgain(string gameId)
+        {
+            var updated = await _gameManager.RestartGame(gameId);
+            if (updated != null)
+                await Clients.Group(gameId).SendAsync("GameUpdated", updated);
+        }
+
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
             await _gameManager.HandleDisconnect(Context.ConnectionId);

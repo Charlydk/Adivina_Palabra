@@ -52,6 +52,11 @@ class GameHubService {
     await this.connection?.invoke('NextRound', gameId);
   }
 
+  /** Restart a concluded non-room game with a new word for the same connected players. */
+  async playAgain(gameId: string) {
+    await this.connection?.invoke('PlayAgain', gameId);
+  }
+
   async stopConnection() {
     if (this.connection) {
       await this.connection.stop();

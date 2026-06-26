@@ -26,6 +26,7 @@ namespace AhorcadoPro.Backend.Controllers
         {
             var game = await _gameManager.CreateGame(
                 request.Mode, request.Alias, request.MaxAttempts, request.Theme,
+                wordOverride: string.IsNullOrWhiteSpace(request.Word) ? null : request.Word,
                 educationalCategory: request.Category, profile: request.Profile);
             return Ok(game);
         }
@@ -102,6 +103,7 @@ namespace AhorcadoPro.Backend.Controllers
         public string? Theme { get; set; }
         public string? Category { get; set; }
         public string? Profile { get; set; }
+        public string? Word { get; set; }
     }
 
     public record DailyChallengeCache(string Word, string Category, string Hint, string Date);

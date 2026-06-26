@@ -32,6 +32,11 @@ namespace AhorcadoPro.Backend.Models
         public string WordToGuess { get; set; } = string.Empty;
         public string Category { get; set; } = string.Empty;
 
+        // Word-generation params remembered so "Play Again" keeps the same theme/category.
+        public string? Theme { get; set; }
+        public string? EducationalCategory { get; set; }
+        public string? Profile { get; set; }
+
         // Classroom mode: teacher host (spectator, not a player slot)
         public string? HostId { get; set; }
         public string? HostAlias { get; set; }
