@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { School, Plus, ArrowLeft, Copy, Check, RefreshCw, Monitor, BookMarked, Pencil, Save, X, Sparkles, History, ChevronDown, ChevronUp } from 'lucide-react';
+import { useAuth } from '../context/useAuth';
 import {
   getWordLists,
   getWordList,
@@ -35,6 +36,10 @@ function parseWordLines(raw: string) {
 
 export default function TeacherLists() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  // Teacher identity is the authenticated email (stable) when logged in. Falls back to the email
+  // persisted at login (survives brief session gaps), then the guest alias.
+  const teacherKey = user?.email || user?.user_metadata?.email || localStorage.getItem('teacherEmail') || localStorage.getItem('alias') || '';
   const alias = localStorage.getItem('alias') || '';
 
   const [lists, setLists] = useState<WordListSummary[]>([]);
@@ -95,12 +100,13 @@ export default function TeacherLists() {
   };
 
   useEffect(() => {
-    if (!alias) { setLoading(false); return; }
-    getWordLists(alias)
+    if (!teacherKey) { setLoading(false); return; }
+    setLoading(true);
+    getWordLists(teacherKey)
       .then(setLists)
       .catch(() => setFetchError('No se pudo cargar las listas. Verificá que el servidor esté encendido.'))
       .finally(() => setLoading(false));
-  }, [alias]);
+  }, [teacherKey]);
 
   const generateCode = async (listId: number) => {
     setGeneratingFor(listId);
@@ -214,7 +220,7 @@ export default function TeacherLists() {
         <div className="flex-grow">
           <h1 className="magic-title text-3xl text-halloween-orange">Mis listas</h1>
           <p className="text-gray-500 text-sm mt-0.5">
-            {alias ? `Listas creadas por ${alias}` : 'Iniciá sesión para ver tus listas'}
+            {teacherKey ? `Listas creadas por ${teacherKey}` : 'Iniciá sesión para ver tus listas'}
           </p>
         </div>
         <button
@@ -232,7 +238,7 @@ export default function TeacherLists() {
         </div>
       )}
 
-      {!alias ? (
+      {!teacherKey ? (
         <div className="text-center py-16 text-gray-500">
           <School size={48} className="mx-auto mb-4 opacity-30" />
           <p>Iniciá sesión como docente para ver tus listas.</p>

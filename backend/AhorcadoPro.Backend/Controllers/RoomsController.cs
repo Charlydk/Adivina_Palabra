@@ -125,7 +125,10 @@ namespace AhorcadoPro.Backend.Controllers
             var query = _db.WordLists.Include(w => w.Items).AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(ownerAlias))
-                query = query.Where(w => w.OwnerAlias == ownerAlias.Trim());
+            {
+                var normalized = ownerAlias.Trim().ToLower();
+                query = query.Where(w => w.OwnerAlias != null && w.OwnerAlias.ToLower() == normalized);
+            }
 
             var lists = await query
                 .OrderByDescending(w => w.CreatedAt)

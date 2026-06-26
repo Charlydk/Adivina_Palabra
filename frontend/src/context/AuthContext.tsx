@@ -20,11 +20,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const syncAlias = (user: User | null) => {
-    if (user && !localStorage.getItem('alias')) {
+    if (!user) return;
+    // Persist a stable teacher identity so list ownership survives brief session gaps.
+    const email = user.email || user.user_metadata?.email;
+    if (email) localStorage.setItem('teacherEmail', email);
+    if (!localStorage.getItem('alias')) {
       const name =
         user.user_metadata?.full_name ||
         user.user_metadata?.name ||
-        user.email?.split('@')[0] ||
+        email?.split('@')[0] ||
         'Docente';
       localStorage.setItem('alias', name);
     }
@@ -69,6 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    localStorage.removeItem('teacherEmail');
     await supabase.auth.signOut();
   };
 

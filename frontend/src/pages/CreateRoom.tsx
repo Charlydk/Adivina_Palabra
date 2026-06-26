@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, Copy, Check, Plus, ArrowLeft, Monitor, BookMarked } from 'lucide-react';
 import { createWordList, createRoom, joinRoom as joinRoomApi, generateAiWordList } from '../services/api';
 import { Sparkles } from 'lucide-react';
+import { useAuth } from '../context/useAuth';
 
 type RoomMode = 'tarea' | 'clase';
 
@@ -37,7 +38,11 @@ function parseWordLines(raw: string) {
 
 export default function CreateRoom() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const alias = localStorage.getItem('alias') || '';
+  // List ownership is keyed to the authenticated email (stable) when logged in. Falls back to the
+  // email persisted at login, then the guest alias.
+  const teacherKey = user?.email || user?.user_metadata?.email || localStorage.getItem('teacherEmail') || alias;
 
   const [mode, setMode] = useState<RoomMode>('tarea');
   const [listName, setListName] = useState('');
@@ -92,7 +97,7 @@ export default function CreateRoom() {
         // Step 1: persist the word list
         const list = await createWordList({
           name: listName.trim(),
-          ownerAlias: alias || undefined,
+          ownerAlias: teacherKey || undefined,
           words,
         });
         // Step 2: create the tarea room (code-only, no GameSession)
@@ -107,7 +112,7 @@ export default function CreateRoom() {
         // Classroom: teacher gets their own session to play projected — same infra as tarea
         const list = await createWordList({
           name: listName.trim(),
-          ownerAlias: alias || undefined,
+          ownerAlias: teacherKey || undefined,
           words,
         });
         const room = await createRoom({
