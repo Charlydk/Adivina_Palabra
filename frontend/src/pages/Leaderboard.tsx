@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Trophy, Flame, Crown, Skull } from 'lucide-react';
+import { Trophy, Flame, Crown, Skull, Gamepad2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface LeaderboardEntry {
@@ -25,6 +26,7 @@ const RANK_ICONS = [
 ];
 
 export default function Leaderboard() {
+  const navigate = useNavigate();
   const [period, setPeriod] = useState<Period>('weekly');
   const [data, setData] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -117,6 +119,16 @@ export default function Leaderboard() {
           ))}
         </div>
       )}
+
+      <div className="flex justify-center mt-8">
+        <button
+          onClick={() => navigate('/', { state: { step: 2 } })}
+          className="flex items-center gap-2 bg-gray-700 text-gray-200 font-bold px-6 py-3 rounded-xl hover:bg-gray-600 transition"
+        >
+          <Gamepad2 size={18} />
+          Volver a elegir juego
+        </button>
+      </div>
     </div>
   );
 }

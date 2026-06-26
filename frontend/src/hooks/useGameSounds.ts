@@ -28,7 +28,7 @@ export function useGameSounds(game: any, alias?: string) {
     bg.current = makeAudio('/sounds/musica_fondo_intro.mp3', true, 0.25);
     sfxOk.current = makeAudio('/sounds/acierto_letra.mp3', false, 0.75);
     sfxWrong.current = makeAudio('/sounds/error_letra.mp3', false, 0.75);
-    sfxWin.current = makeAudio('/sounds/triunfo.mp3', false, 0.85);
+    sfxWin.current = makeAudio('/sounds/triunfo.mp3', false, 0.3);
     sfxLose.current = makeAudio('/sounds/derrota.mp3', false, 0.85);
     sfxLast.current = makeAudio('/sounds/ultimo_intento.mp3', false, 0.85);
     return () => { bg.current?.pause(); };
