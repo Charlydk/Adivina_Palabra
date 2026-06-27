@@ -5,6 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-06-26
+
+### Fixed
+- **"Play again" no longer repeats words**: each session tracks the words
+  already played and excludes them when generating the next one — both for
+  AI theme-based generation (with a retry if the model ignores the exclusion)
+  and the word bank. Applies to Solo and online modes.
+
 ## [1.0.0] - 2026-06-26
 
 First stable release used for the academic demo (Tecnología Educativa I, UTN).
@@ -35,4 +43,5 @@ First stable release used for the academic demo (Tecnología Educativa I, UTN).
   sequence shows correctly after "Play again".
 - Lower victory sound volume.
 
+[1.0.1]: https://github.com/Charlydk/Adivina_Palabra/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Charlydk/Adivina_Palabra/releases/tag/v1.0.0

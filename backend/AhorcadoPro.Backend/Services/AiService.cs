@@ -7,7 +7,7 @@ namespace AhorcadoPro.Backend.Services
     public interface IAiService
     {
         Task<string> GetHintAsync(string word, string category, string profile = "");
-        Task<AiWordResult?> GenerateWordAsync(string? theme = null);
+        Task<AiWordResult?> GenerateWordAsync(string? theme = null, IEnumerable<string>? excludeWords = null);
         Task<WordDefinitionResult> GetWordDefinitionAsync(string word, string category, string profile);
         Task<List<AiWordResult>> GenerateWordListAsync(string theme, int count = 10);
     }
@@ -71,13 +71,19 @@ namespace AhorcadoPro.Backend.Services
             }
         }
 
-        public async Task<AiWordResult?> GenerateWordAsync(string? theme = null)
+        public async Task<AiWordResult?> GenerateWordAsync(string? theme = null, IEnumerable<string>? excludeWords = null)
         {
             var themeInstruction = string.IsNullOrEmpty(theme)
                 ? "Elegí un tema aleatorio interesante."
                 : $"El tema debe ser: {theme}.";
 
+            var excludeList = excludeWords?.Where(w => !string.IsNullOrWhiteSpace(w)).ToList() ?? new List<string>();
+            var excludeInstruction = excludeList.Count > 0
+                ? $"NO uses ninguna de estas palabras ya utilizadas (elegí una distinta): {string.Join(", ", excludeList)}. "
+                : string.Empty;
+
             var prompt = $"Generá una palabra en español para el juego del ahorcado. {themeInstruction} " +
+                         excludeInstruction +
                          "Respondé ÚNICAMENTE con un objeto JSON válido, sin markdown, sin texto adicional. " +
                          "Formato exacto: {{\"word\":\"PALABRA\",\"category\":\"Categoría\",\"hint\":\"Pista corta\"}} " +
                          "La palabra debe estar en MAYÚSCULAS y sin acentos. La pista debe ser en español y no revelar la palabra.";

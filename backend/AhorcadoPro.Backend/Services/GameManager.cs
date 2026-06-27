@@ -72,6 +72,7 @@ namespace AhorcadoPro.Backend.Services
                 Profile = profile
             };
 
+            game.UsedWords.Add(game.WordToGuess);
             _activeGames[game.Id] = game;
             return game;
         }
@@ -481,28 +482,35 @@ namespace AhorcadoPro.Backend.Services
                 if (game.IsRoom) return game;
                 if (game.Status != GameStatus.Won && game.Status != GameStatus.Lost) return game;
 
-                // Reuse the original generation params so the theme/category carries over.
+                // Reuse the original generation params so the theme/category carries over,
+                // while avoiding words already played this session.
                 string? wordText = null;
                 string? category = null;
                 if (!string.IsNullOrEmpty(game.Theme))
                 {
                     using var scope = _serviceProvider.CreateScope();
                     var ai = scope.ServiceProvider.GetRequiredService<IAiService>();
-                    var aiResult = await ai.GenerateWordAsync(game.Theme);
-                    if (aiResult != null)
+                    // Retry a few times: the LLM doesn't always honor the exclusion list.
+                    for (int attempt = 0; attempt < 3 && wordText == null; attempt++)
                     {
-                        wordText = aiResult.Word;
+                        var aiResult = await ai.GenerateWordAsync(game.Theme, game.UsedWords);
+                        if (aiResult == null || string.IsNullOrWhiteSpace(aiResult.Word)) continue;
+                        var candidate = aiResult.Word.ToUpper();
+                        if (game.UsedWords.Contains(candidate)) continue;
+                        wordText = candidate;
                         category = aiResult.Category;
                     }
                 }
                 if (wordText == null)
                 {
-                    var word = await GetRandomWord(game.EducationalCategory, game.Profile);
+                    var word = await GetRandomWord(game.EducationalCategory, game.Profile, game.UsedWords);
                     wordText = word?.Text.ToUpper() ?? "AHORCADO";
                     category = word?.Category ?? game.Category;
                 }
                 game.WordToGuess = wordText.ToUpper();
                 game.Category = category ?? game.Category;
+                if (!game.UsedWords.Contains(game.WordToGuess))
+                    game.UsedWords.Add(game.WordToGuess);
 
                 // Shared pool (Solo / Coop)
                 game.GuessedLetters = string.Empty;
@@ -846,7 +854,7 @@ namespace AhorcadoPro.Backend.Services
             }
         }
 
-        private async Task<Word?> GetRandomWord(string? educationalCategory = null, string? profile = null)
+        private async Task<Word?> GetRandomWord(string? educationalCategory = null, string? profile = null, IEnumerable<string>? excludeWords = null)
         {
             using var scope = _serviceProvider.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -857,6 +865,17 @@ namespace AhorcadoPro.Backend.Services
 
             if (!string.IsNullOrEmpty(profile))
                 query = query.Where(w => w.TargetProfile == profile || w.TargetProfile == "ambos");
+
+            // Exclude words already played this session (uppercased for a case-insensitive match).
+            var exclude = excludeWords?.Select(w => w.ToUpper()).ToList() ?? new List<string>();
+            if (exclude.Count > 0)
+            {
+                var filtered = query.Where(w => !exclude.Contains(w.Text.ToUpper()));
+                // Only apply the exclusion if it still leaves words available, so we never return null
+                // just because the player exhausted the (small) bank.
+                if (await filtered.CountAsync() > 0)
+                    query = filtered;
+            }
 
             var count = await query.CountAsync();
             if (count == 0)

@@ -37,6 +37,11 @@ namespace AhorcadoPro.Backend.Models
         public string? EducationalCategory { get; set; }
         public string? Profile { get; set; }
 
+        // Words already played this session, so "Play Again" doesn't repeat them.
+        // Server-only — never sent to clients (would leak past/current answers).
+        [JsonIgnore]
+        public List<string> UsedWords { get; set; } = new();
+
         // Classroom mode: teacher host (spectator, not a player slot)
         public string? HostId { get; set; }
         public string? HostAlias { get; set; }
