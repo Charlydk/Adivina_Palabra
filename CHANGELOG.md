@@ -5,6 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2026-06-26
+
+### Changed
+- **Mobile online layout**: on phones, the hangman image stays prominent and a
+  compact status strip (your errors / rival errors) sits right above the
+  keyboard, so the image transitions stay visible while playing. The taller
+  info card is kept for desktop.
+
 ## [1.0.2] - 2026-06-26
 
 ### Fixed
@@ -51,6 +59,7 @@ First stable release used for the academic demo (Tecnología Educativa I, UTN).
   sequence shows correctly after "Play again".
 - Lower victory sound volume.
 
+[1.0.3]: https://github.com/Charlydk/Adivina_Palabra/releases/tag/v1.0.3
 [1.0.2]: https://github.com/Charlydk/Adivina_Palabra/releases/tag/v1.0.2
 [1.0.1]: https://github.com/Charlydk/Adivina_Palabra/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Charlydk/Adivina_Palabra/releases/tag/v1.0.0

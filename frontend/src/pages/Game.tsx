@@ -586,11 +586,38 @@ const Game: React.FC = () => {
         )}
       </div>
 
+      {/* ── Franja compacta de estado: SOLO mobile — mantiene la imagen visible sobre el teclado ── */}
+      {!isOver && !isHost && (
+        <div className="flex lg:hidden items-stretch gap-2 text-center">
+          <div className="flex-1 bg-black bg-opacity-60 rounded-xl border border-halloween-orange border-opacity-20 px-3 py-2">
+            <p className="text-[10px] text-gray-500 uppercase tracking-widest truncate">
+              {isVersus ? `${localIsP1 ? game.player1Alias : game.player2Alias} (vos)` : 'Tus errores'}
+            </p>
+            <p className="text-sm font-bold text-red-400">{incorrectLetters.length} / {game.maxAttempts}</p>
+            {incorrectLetters.length > 0 && (
+              <p className="text-xs text-red-500 tracking-widest font-bold truncate">{incorrectLetters}</p>
+            )}
+          </div>
+          {isVersus && game.player2Alias && (
+            <div className="flex-1 bg-black bg-opacity-60 rounded-xl border border-gray-700 px-3 py-2">
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest truncate">{rivalAlias} (rival)</p>
+              <p className="text-sm font-bold text-gray-300">{rivalErrors} / {game.maxAttempts}</p>
+            </div>
+          )}
+          {isVersus && isOnline && !game.player2Alias && (
+            <div className="flex-1 bg-black bg-opacity-60 rounded-xl border border-gray-700 px-3 py-2 flex items-center justify-center gap-1 text-gray-600">
+              <Clock size={14} className="opacity-40" />
+              <span className="text-xs">Esperando rival...</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── CONTROLES: 3 columnas en desktop ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
-        {/* Izquierda: info del jugador */}
-        <div className="bg-black bg-opacity-60 p-4 rounded-xl border border-halloween-orange border-opacity-20 flex flex-col items-center gap-3">
+        {/* Izquierda: info del jugador (desktop — en mobile se usa la franja compacta de arriba) */}
+        <div className="hidden lg:flex bg-black bg-opacity-60 p-4 rounded-xl border border-halloween-orange border-opacity-20 flex-col items-center gap-3">
           <h3 className="text-lg font-bold text-halloween-orange">
             {isVersus
               ? `${localIsP1 ? game.player1Alias : game.player2Alias} (vos)`
